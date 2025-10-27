@@ -34,13 +34,38 @@
       <div class="flex-1 min-w-0">
         <div id="map" class="rounded-2xl overflow-hidden shadow-lg"></div>
       </div>
-      <!-- Coluna lateral (Lista + Cadastro)-->
-      <div class="md:w-96 flex flex-col gap-5 justify-between">
-        <div>
-          <h2 class="text-xl text-indigo-700 font-bold mb-2">Celulares cadastrados</h2>
-          <ul id="listaCelulares" class="flex-1 space-y-2"></ul>
-        </div>
-        <!-- Formulário cadastral inline -->
+	      <!-- Coluna lateral (Lista + Cadastro)-->
+	      <div class="md:w-96 flex flex-col gap-5 justify-between">
+	        <!-- CRUD de Ícones -->
+	        <div id="crudIcones">
+	          <h2 class="text-xl text-indigo-700 font-bold mb-2">Gerenciar Ícones</h2>
+	          <div class="bg-white rounded-xl shadow px-4 py-3 mb-4">
+	            <h3 id="formIconeTitulo" class="text-lg font-bold text-indigo-700 mb-2">Cadastrar Novo Ícone</h3>
+	            <form id="cadastroIconeForm" class="flex flex-col gap-3">
+	              <input type="hidden" id="editIconeId" name="editIconeId" />
+	              <div>
+	                <label for="nomeIcone" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
+	                <input type="text" id="nomeIcone" name="nomeIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+	              </div>
+	              <div>
+	                <label for="urlIcone" class="block text-xs font-semibold text-gray-700 mb-1">URL/Nome do Ícone (Geoapify/FontAwesome):</label>
+	                <input type="text" id="urlIcone" name="urlIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: mobile-alt, home, car" />
+	              </div>
+	              <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitIconeBtn">Cadastrar Ícone</button>
+	              <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditIconeBtn">Cancelar Edição</button>
+	              <p id="mensagemCadastroIcone" class="mt-1 text-xs"></p>
+	            </form>
+	          </div>
+	          <ul id="listaIcones" class="flex flex-wrap gap-2 mb-4">
+	            <!-- Ícones serão listados aqui -->
+	          </ul>
+	        </div>
+	        
+	        <div>
+	          <h2 class="text-xl text-indigo-700 font-bold mb-2">Celulares cadastrados</h2>
+	          <ul id="listaCelulares" class="flex-1 space-y-2"></ul>
+	        </div>
+	        <!-- Formulário cadastral inline -->
         <div class="bg-white rounded-xl shadow px-4 py-3">
           <h2 id="formTitulo" class="text-lg font-bold text-indigo-700 mb-2">Cadastrar novo celular</h2>
           <form id="cadastroForm" class="flex flex-col gap-3">
@@ -51,9 +76,9 @@
             </div>
             <div>
               <label for="numero" class="block text-xs font-semibold text-gray-700 mb-1">Número do celular:</label>
-              <input type="text" id="numero" name="numero" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitBtn">Cadastrar</button>
+	              <input type="text" id="numero" name="numero" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+	            </div>
+	            <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitBtn">Cadastrar</button>
             <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditBtn">Cancelar</button>
             <p id="mensagemCadastro" class="mt-1 text-xs"></p>
           </form>
@@ -82,11 +107,11 @@
       maxZoom: 19,
     }).addTo(map);
 
-    async function buscarCelulares() {
-      const { data: lista, error } = await supabase
-        .from('usuarios_localizacao')
-        .select('*');
-      if (error) {
+	    async function buscarCelulares() {
+	      const { data: lista, error } = await supabase
+	        .from('usuarios_localizacao')
+	        .select('*'); // Revertido para o original para evitar erro 400
+	      if (error) {
         document.getElementById('listaCelulares').innerHTML = '<li class="text-red-500">Erro ao buscar dados</li>';
         return;
       }
@@ -95,13 +120,13 @@
       window.markers = [];
       document.getElementById('listaCelulares').innerHTML = '';
 
-      (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at }) => {
-        const markerIcon = L.icon({
-          iconUrl: `https://api.geoapify.com/v1/icon/?type=awesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`,
-          iconSize: [38, 58],
-          iconAnchor: [19, 56],
-          popupAnchor: [0, -50],
-        });
+	      (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at }) => {
+	        const markerIcon = L.icon({
+	          iconUrl: `https://api.geoapify.com/v1/icon/?type=awesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`,
+	          iconSize: [38, 58],
+	          iconAnchor: [19, 56],
+	          popupAnchor: [0, -50],
+	        });
 
         const texto = `
           <div class="text-indigo-700 font-bold text-lg mb-1">${nome}</div>
@@ -124,10 +149,10 @@
             <button class="deletarBtn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded shadow" data-id="${id}">Excluir</button>
           </div>
         `;
-        document.getElementById('listaCelulares').appendChild(item);
-      });
-
-      if (window.markers && window.markers.length > 0) {
+	        document.getElementById('listaCelulares').appendChild(item);
+	      });
+	
+	      if (window.markers && window.markers.length > 0) {
         const marker = window.markers[0];
         map.setView(marker.getLatLng(), 14);
       }
@@ -161,19 +186,19 @@
           }
           editId.value = data.id;
           nomeInput.value = data.nome;
-          numeroInput.value = data.numero;
-          submitBtn.textContent = "Salvar";
+	          numeroInput.value = data.numero;
+	          submitBtn.textContent = "Salvar";
           cancelEditBtn.classList.remove('hidden');
           formTitulo.textContent = "Editar celular";
           mensagemCadastro.textContent = "";
         };
       });
 
-      cancelEditBtn.onclick = () => {
-        editId.value = "";
-        nomeInput.value = "";
-        numeroInput.value = "";
-        submitBtn.textContent = "Cadastrar";
+	      cancelEditBtn.onclick = () => {
+	        editId.value = "";
+	        nomeInput.value = "";
+	        numeroInput.value = "";
+	        submitBtn.textContent = "Cadastrar";
         cancelEditBtn.classList.add('hidden');
         formTitulo.textContent = "Cadastrar novo celular";
         mensagemCadastro.textContent = "";
@@ -199,10 +224,10 @@
         e.preventDefault();
         mensagemCadastro.textContent = "Enviando dados...";
         const id = editId.value;
-        const payload = {
-          nome: nomeInput.value,
-          numero: numeroInput.value
-        };
+	        const payload = {
+	          nome: nomeInput.value,
+	          numero: numeroInput.value
+	        };
         if (id) {
           const { error } = await supabase
             .from('usuarios_localizacao')
@@ -224,13 +249,137 @@
         form.reset();
         cancelEditBtn.classList.add('hidden');
         submitBtn.textContent = "Cadastrar";
-        document.getElementById('formTitulo').textContent = "Cadastrar novo celular";
-        buscarCelulares();
-      };
-    }
-
-    document.getElementById('atualizarBtn').onclick = buscarCelulares;
-    buscarCelulares();
-  </script>
+	        document.getElementById('formTitulo').textContent = "Cadastrar novo celular";
+	        buscarCelulares();
+	      };
+	    }
+	
+	    // --- Funções CRUD de Ícones ---
+	    async function buscarIcones() {
+	      const { data: icones, error } = await supabase
+	        .from('icones_maquina') // Ajustado para o nome da tabela do usuário
+	        .select('*');
+	
+	      if (error) {
+	        document.getElementById('listaIcones').innerHTML = '<li class="text-red-500">Erro ao buscar ícones</li>';
+	        return [];
+	      }
+	
+	      const listaIconesEl = document.getElementById('listaIcones');
+	      listaIconesEl.innerHTML = '';
+	
+	      (icones || []).forEach(icone => {
+	        const item = document.createElement('li');
+	        item.className = 'flex items-center gap-2 p-1 bg-gray-100 rounded shadow text-sm';
+	        item.innerHTML = `
+	          <img src="https://api.geoapify.com/v1/icon/?type=awesome&color=%23631fc9&size=small&icon=${icone.label_icone}&apiKey=${apiKey}" class="w-5 h-5" alt="${icone.nome_icone}">
+	          <span>${icone.nome_icone}</span>
+	          <div class="flex gap-1">
+	            <button class="editarIconeBtn bg-yellow-400 hover:bg-yellow-500 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">E</button>
+	            <button class="deletarIconeBtn bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">X</button>
+	          </div>
+	        `;
+	        listaIconesEl.appendChild(item);
+	      });
+	
+	      setupIconeEventListeners(icones);
+	      return icones;
+	    }
+	
+	    function setupIconeEventListeners(icones) {
+	      const editarIconeBtns = document.querySelectorAll('.editarIconeBtn');
+	      const deletarIconeBtns = document.querySelectorAll('.deletarIconeBtn');
+	      const form = document.getElementById('cadastroIconeForm');
+	      const submitBtn = document.getElementById('submitIconeBtn');
+	      const cancelEditBtn = document.getElementById('cancelEditIconeBtn');
+	      const formTitulo = document.getElementById('formIconeTitulo');
+	      const mensagemCadastro = document.getElementById('mensagemCadastroIcone');
+	      const editId = document.getElementById('editIconeId');
+	      const nomeInput = document.getElementById('nomeIcone');
+	      const urlInput = document.getElementById('urlIcone');
+	
+	      editarIconeBtns.forEach(btn => {
+	        btn.onclick = () => {
+	          const id = btn.getAttribute('data-id');
+	          const icone = icones.find(i => i.id == id);
+	          if (!icone) return;
+	
+	          editId.value = icone.id;
+	          nomeInput.value = icone.nome_icone;
+	          urlInput.value = icone.label_icone; // Ajustado para o nome da coluna do usuário
+	          submitBtn.textContent = "Salvar Ícone";
+	          cancelEditBtn.classList.remove('hidden');
+	          formTitulo.textContent = "Editar Ícone";
+	          mensagemCadastro.textContent = "";
+	        };
+	      });
+	
+	      cancelEditBtn.onclick = () => {
+	        editId.value = "";
+	        nomeInput.value = "";
+	        urlInput.value = "";
+	        submitBtn.textContent = "Cadastrar Ícone";
+	        cancelEditBtn.classList.add('hidden');
+	        formTitulo.textContent = "Cadastrar Novo Ícone";
+	        mensagemCadastro.textContent = "";
+	      };
+	
+	      deletarIconeBtns.forEach(btn => {
+	        btn.onclick = async () => {
+	          if (!confirm('Tem certeza que deseja excluir este ícone? Todos os celulares que o utilizam ficarão com o ícone padrão.')) return;
+	          const id = btn.getAttribute('data-id');
+	          const { error } = await supabase
+	            .from('icones_maquina') // Ajustado para o nome da tabela do usuário
+	            .delete()
+            .eq('id', id);
+	          if (error) {
+	            alert("Erro ao excluir: " + error.message);
+	            return;
+	          }
+	          buscarIcones();
+	          buscarCelulares(); // Atualiza mapa e select
+	        };
+	      });
+	
+	      form.onsubmit = async (e) => {
+	        e.preventDefault();
+	        mensagemCadastro.textContent = "Enviando dados...";
+	        const id = editId.value;
+	        const payload = {
+	          nome_icone: nomeInput.value,
+	          label_icone: urlInput.value // Ajustado para o nome da coluna do usuário
+	        };
+	        if (id) {
+	          const { error } = await supabase
+	            .from('icones_maquina') // Ajustado para o nome da tabela do usuário
+	            .update(payload)
+	            .eq('id', id);
+	          if (error) {
+	            mensagemCadastro.textContent = "Erro ao atualizar ícone: " + error.message;
+	            return;
+	          }
+	          mensagemCadastro.textContent = "Ícone atualizado com sucesso!";
+	        } else {
+	          const { error } = await supabase.from('icones_maquina').insert([payload]); // Ajustado para o nome da tabela do usuário
+	          if (error) {
+	            mensagemCadastro.textContent = "Erro ao cadastrar ícone: " + error.message;
+	            return;
+	          }
+	          mensagemCadastro.textContent = "Ícone cadastrado com sucesso!";
+	        }
+	        form.reset();
+	        cancelEditBtn.classList.add('hidden');
+	        submitBtn.textContent = "Cadastrar Ícone";
+	        document.getElementById('formIconeTitulo').textContent = "Cadastrar Novo Ícone";
+	        buscarIcones();
+	        carregarIconesParaSelect();
+	        buscarCelulares(); // Atualiza mapa
+	      };
+	    }
+	
+	    document.getElementById('atualizarBtn').onclick = buscarCelulares;
+	    buscarIcones(); // Adiciona a chamada para buscar ícones na inicialização
+	    buscarCelulares();
+	  </script>
 </body>
 </html>
