@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Stack Auth SDK -->
+  <script src="https://cdn.stack-auth.com/auth.js"></script>
   <style>
     #map { height: 500px; }
     .leaflet-popup-content-wrapper { border-radius: 0.75rem; }
@@ -17,7 +19,17 @@
 <body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen">
   <nav class="bg-white/90 shadow-lg mb-5 flex items-center justify-between px-6 py-3">
     <span class="text-indigo-700 font-bold text-xl">Painel de Geolocalização</span>
-    <span class="text-gray-500 font-medium">Powered by Neon + Geoapify</span>
+    <div id="userControls" class="flex items-center gap-4">
+      <span id="userEmail" class="text-xs text-gray-800"></span>
+      <button id="loginBtn"
+        class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-4 py-2 rounded-lg shadow transition">
+        Entrar
+      </button>
+      <button id="logoutBtn"
+        class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold px-4 py-2 rounded-lg transition">
+        Sair
+      </button>
+    </div>
   </nav>
 
   <main class="max-w-5xl mx-auto px-4">
@@ -63,23 +75,57 @@
     <footer class="mt-8 text-white/70 text-center">Painel - NeonDB &copy; 2025</footer>
   </main>
 
-  <!-- Script do CRUD de cadastro -->
+  <!-- Stack Auth Auth e CRUD -->
   <script>
+    let jwt = null;
+    let user = null;
+    const PROJECT_ID = 'f78d4403-30ca-4167-ba4b-36fa3e9c1948'; // substitua se mudar
+
+    const client = new window.StackAuthClient({ projectId: PROJECT_ID });
+
+    async function atualizarAuthUI() {
+      user = await client.getUser();
+      jwt  = user ? await client.getToken() : null;
+      document.getElementById('userEmail').textContent = user?.email || '';
+      document.getElementById('loginBtn').style.display = user ? 'none' : '';
+      document.getElementById('logoutBtn').style.display = user ? '' : 'none';
+      document.getElementById('cadastroForm').style.display = user ? '' : 'none';
+      if (!user) document.getElementById('mensagemCadastro').textContent = 'É preciso estar logado para cadastrar.';
+    }
+
+    document.getElementById('loginBtn').onclick = async () => {
+      await client.signInWithPopup();
+      await atualizarAuthUI();
+    };
+    document.getElementById('logoutBtn').onclick = async () => {
+      await client.signOut();
+      await atualizarAuthUI();
+    };
+
+    window.addEventListener('DOMContentLoaded', atualizarAuthUI);
+
+    // Cadastro só para usuário autenticado!
     const form = document.getElementById('cadastroForm');
     const mensagemCadastro = document.getElementById('mensagemCadastro');
     form.onsubmit = async (e) => {
       e.preventDefault();
+      if (!jwt) {
+        mensagemCadastro.textContent = "Faça login antes de cadastrar!";
+        return;
+      }
       mensagemCadastro.textContent = "Enviando cadastro...";
       const dataApiUrl = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1/usuarios_localizacao";
       const payload = {
         nome: form.nome.value,
         numero: form.numero.value
-        // Não envia lat/lon aqui!
       };
       try {
         const res = await fetch(dataApiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`
+          },
           body: JSON.stringify(payload)
         });
         if (res.ok) {
@@ -145,7 +191,6 @@
         document.getElementById('listaCelulares').appendChild(item);
       });
 
-      // Centraliza se houver pelo menos 1 marcador
       if (window.markers && window.markers.length > 0) {
         const marker = window.markers[0];
         map.setView(marker.getLatLng(), 14);
