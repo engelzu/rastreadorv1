@@ -46,45 +46,103 @@
       (lista || []).forEach(c => {
         select.innerHTML += `<option value="${c.id}">${c.nome} (${c.numero})</option>`;
       });
+      
+      // 1. Carregar o valor salvo do localStorage, se existir
+      const savedId = localStorage.getItem('lastSelectedCelularId');
+      if (savedId) {
+        select.value = savedId;
+      }
     }
-    carregarCelulares();
-
-    // Enviar localização ao Supabase
-    document.getElementById('liberarBtn').onclick = async function () {
-      const celularId = document.getElementById('celularSelect').value;
-      const statusMsg = document.getElementById('statusMsg');
-      statusMsg.textContent = "";
-
+    
+    // Função para obter e enviar a localização
+    async function obterEEnviarLocalizacao(celularId, statusMsg) {
       if (!celularId) {
         statusMsg.textContent = "Selecione o celular!";
         return;
       }
-
+      
       if (!navigator.geolocation) {
         statusMsg.textContent = "Seu dispositivo não suporta geolocalização.";
         return;
       }
-
+      
       statusMsg.textContent = "Obtendo localização...";
-      navigator.geolocation.getCurrentPosition(async function(pos) {
-        statusMsg.textContent = "Enviando dados...";
-        // Atualiza a latitude e longitude pelo ID do celular
-        const { error } = await supabase
-          .from('usuarios_localizacao')
-          .update({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude
-          })
-          .eq('id', celularId);
-        if (!error) {
-          statusMsg.textContent = "Localização enviada com sucesso!";
-        } else {
-          statusMsg.textContent = "Erro ao enviar localização: " + error.message;
-        }
-      }, function(erro) {
-        statusMsg.textContent = "Permissão de localização negada ou erro.";
-      }, { enableHighAccuracy:true, timeout:10000 });
-    };
+      
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(async function(pos) {
+          statusMsg.textContent = "Enviando dados...";
+          // Atualiza a latitude e longitude pelo ID do celular
+          const { error } = await supabase
+            .from('usuarios_localizacao')
+            .update({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            })
+            .eq('id', celularId);
+          if (!error) {
+            statusMsg.textContent = "Localização enviada com sucesso!";
+            resolve();
+          } else {
+            statusMsg.textContent = "Erro ao enviar localização: " + error.message;
+            reject(error);
+          }
+        }, function(erro) {
+          statusMsg.textContent = "Permissão de localização negada ou erro.";
+          reject(erro);
+        }, { enableHighAccuracy:true, timeout:10000 });
+      });
+    }
+    
+    // 3. Modificar o evento de clique para usar a nova função e iniciar o intervalo
+    let intervaloLocalizacao = null;
+    const INTERVALO_MS = 10 * 60 * 1000; // 10 minutos em milissegundos
+    
+    // Função principal de inicialização
+    function iniciarRastreamento() {
+      const celularId = document.getElementById('celularSelect').value;
+      const statusMsg = document.getElementById('statusMsg');
+      
+      // Para o intervalo anterior, se houver
+      if (intervaloLocalizacao) {
+        clearInterval(intervaloLocalizacao);
+        intervaloLocalizacao = null;
+      }
+      
+      if (!celularId) {
+        statusMsg.textContent = "Selecione o celular para iniciar o rastreamento.";
+        return;
+      }
+      
+      // Inicia o rastreamento
+      statusMsg.textContent = "Rastreamento iniciado. Enviando localização a cada 10 minutos...";
+      
+      // Executa imediatamente
+      obterEEnviarLocalizacao(celularId, statusMsg);
+      
+      // Configura o intervalo
+      intervaloLocalizacao = setInterval(() => {
+        obterEEnviarLocalizacao(celularId, statusMsg);
+      }, INTERVALO_MS);
+    }
+    
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', (event) => {
+        carregarCelulares().then(() => {
+            // 2. Salvar o valor selecionado no localStorage sempre que mudar
+            document.getElementById('celularSelect').addEventListener('change', (event) => {
+              localStorage.setItem('lastSelectedCelularId', event.target.value);
+            });
+
+            document.getElementById('liberarBtn').onclick = iniciarRastreamento;
+
+            // 4. Tentar iniciar o rastreamento automaticamente se um celular estiver pré-selecionado
+            const celularId = document.getElementById('celularSelect').value;
+            if (celularId) {
+                iniciarRastreamento();
+            }
+        });
+    });
+
   </script>
 </body>
-</html>
+</html>'''
