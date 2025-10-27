@@ -8,8 +8,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     #map { height: 500px; }
     .leaflet-popup-content-wrapper { border-radius: 0.75rem; }
@@ -63,16 +61,16 @@
     <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB &copy; 2025</footer>
   </main>
 
-  <!-- Supabase CRUD + Mapa/Lista -->
-
-
+  <!-- Bibliotecas externas ao FINAL -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Seu JS -->
   <script>
     // Troque pelos seus dados!
     const SUPABASE_URL = 'https://rptxfjlxymfmxucctuhc.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
     const map = L.map('map').setView([-14.2, -51.9], 4);
@@ -152,7 +150,5 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       }
     };
   </script>
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
