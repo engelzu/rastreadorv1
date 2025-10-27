@@ -8,8 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Stack Auth SDK -->
-  <script src="https://cdn.stack-auth.com/auth.js"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     #map { height: 500px; }
     .leaflet-popup-content-wrapper { border-radius: 0.75rem; }
@@ -19,17 +19,6 @@
 <body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen">
   <nav class="bg-white/90 shadow-lg mb-5 flex items-center justify-between px-6 py-3">
     <span class="text-indigo-700 font-bold text-xl">Painel de Geolocalização</span>
-    <div id="userControls" class="flex items-center gap-4">
-      <span id="userEmail" class="text-xs text-gray-800"></span>
-      <button id="loginBtn"
-        class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-4 py-2 rounded-lg shadow transition">
-        Entrar
-      </button>
-      <button id="logoutBtn"
-        class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold px-4 py-2 rounded-lg transition">
-        Sair
-      </button>
-    </div>
   </nav>
 
   <main class="max-w-5xl mx-auto px-4">
@@ -42,7 +31,6 @@
         Atualizar Dados
       </button>
     </section>
-    <!-- Painel principal com Mapa + Lista + Cadastro lado a lado -->
     <div class="bg-white/90 rounded-2xl shadow-lg p-2 mb-4 flex flex-col md:flex-row gap-5">
       <!-- Mapa -->
       <div class="flex-1 min-w-0">
@@ -72,80 +60,17 @@
         </div>
       </div>
     </div>
-    <footer class="mt-8 text-white/70 text-center">Painel - NeonDB &copy; 2025</footer>
+    <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB &copy; 2025</footer>
   </main>
 
-  <!-- Stack Auth Auth e CRUD -->
+  <!-- Supabase CRUD + Mapa/Lista -->
   <script>
-    let jwt = null;
-    let user = null;
-    const PROJECT_ID = 'f78d4403-30ca-4167-ba4b-36fa3e9c1948'; // substitua se mudar
+    // Troque pelos seus dados!
+    const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
+    const SUPABASE_KEY = 'SUA_PUBLIC_ANON_KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const client = new window.StackAuthClient({ projectId: PROJECT_ID });
-
-    async function atualizarAuthUI() {
-      user = await client.getUser();
-      jwt  = user ? await client.getToken() : null;
-      document.getElementById('userEmail').textContent = user?.email || '';
-      document.getElementById('loginBtn').style.display = user ? 'none' : '';
-      document.getElementById('logoutBtn').style.display = user ? '' : 'none';
-      document.getElementById('cadastroForm').style.display = user ? '' : 'none';
-      if (!user) document.getElementById('mensagemCadastro').textContent = 'É preciso estar logado para cadastrar.';
-    }
-
-    document.getElementById('loginBtn').onclick = async () => {
-      await client.signInWithPopup();
-      await atualizarAuthUI();
-    };
-    document.getElementById('logoutBtn').onclick = async () => {
-      await client.signOut();
-      await atualizarAuthUI();
-    };
-
-    window.addEventListener('DOMContentLoaded', atualizarAuthUI);
-
-    // Cadastro só para usuário autenticado!
-    const form = document.getElementById('cadastroForm');
-    const mensagemCadastro = document.getElementById('mensagemCadastro');
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      if (!jwt) {
-        mensagemCadastro.textContent = "Faça login antes de cadastrar!";
-        return;
-      }
-      mensagemCadastro.textContent = "Enviando cadastro...";
-      const dataApiUrl = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1/usuarios_localizacao";
-      const payload = {
-        nome: form.nome.value,
-        numero: form.numero.value
-      };
-      try {
-        const res = await fetch(dataApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${jwt}`
-          },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          mensagemCadastro.textContent = "Celular cadastrado com sucesso!";
-          form.reset();
-          buscarCelulares(); // Atualiza o painel e mapa!
-        } else {
-          const err = await res.text();
-          mensagemCadastro.textContent = "Erro ao cadastrar: " + err;
-        }
-      } catch (err) {
-        mensagemCadastro.textContent = "Erro de conexão com Neon Data API";
-      }
-    };
-  </script>
-  <!-- Leaflet JS + Mapa/Lista -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4";
-    const dataApiUrl = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1/usuarios_localizacao";
+    const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
     const map = L.map('map').setView([-14.2, -51.9], 4);
 
     L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
@@ -154,16 +79,19 @@
     }).addTo(map);
 
     async function buscarCelulares() {
-      const res = await fetch(dataApiUrl);
-      const lista = await res.json();
+      const { data: lista, error } = await supabase
+        .from('usuarios_localizacao')
+        .select('*');
+      if (error) {
+        document.getElementById('listaCelulares').innerHTML = '<li class="text-red-500">Erro ao buscar dados</li>';
+        return;
+      }
 
       if (window.markers) window.markers.forEach(m => map.removeLayer(m));
       window.markers = [];
       document.getElementById('listaCelulares').innerHTML = '';
 
-      lista
-      .filter(c => c.latitude && c.longitude)
-      .forEach(({ nome, numero, latitude, longitude, created_at }) => {
+      (lista || []).filter(c => c.latitude && c.longitude).forEach(({ nome, numero, latitude, longitude, created_at }) => {
         const markerIcon = L.icon({
           iconUrl: `https://api.geoapify.com/v1/icon/?type=awesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`,
           iconSize: [38, 58],
@@ -199,6 +127,28 @@
 
     document.getElementById('atualizarBtn').onclick = buscarCelulares;
     buscarCelulares();
+
+    // Cadastro
+    const form = document.getElementById('cadastroForm');
+    const mensagemCadastro = document.getElementById('mensagemCadastro');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      mensagemCadastro.textContent = "Enviando cadastro...";
+      const payload = {
+        nome: form.nome.value,
+        numero: form.numero.value
+      };
+      const { error } = await supabase.from('usuarios_localizacao').insert([payload]);
+      if (!error) {
+        mensagemCadastro.textContent = "Celular cadastrado com sucesso!";
+        form.reset();
+        buscarCelulares();
+      } else {
+        mensagemCadastro.textContent = "Erro ao cadastrar: " + error.message;
+      }
+    };
   </script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
