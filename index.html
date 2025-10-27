@@ -9,7 +9,7 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    #map { height: 500px; }
+    #map { height: 85vh; width: 100%; }
     .leaflet-popup-content-wrapper { border-radius: 0.75rem; }
     .leaflet-popup-content { font-size: 1rem; }
   </style>
@@ -19,7 +19,7 @@
     <span class="text-indigo-700 font-bold text-xl">Painel de Geolocalização</span>
   </nav>
 
-  <main class="max-w-5xl mx-auto px-4">
+  <main class="mx-auto px-4 w-full">
     <section class="mb-7 flex flex-col md:flex-row gap-4 items-center justify-between">
       <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-3 md:mb-0 drop-shadow-lg">
         Localização dos Celulares
@@ -29,7 +29,7 @@
         Atualizar Dados
       </button>
     </section>
-    <div class="bg-white/90 rounded-2xl shadow-lg p-2 mb-4 flex flex-col md:flex-row gap-5">
+    <div class="bg-white/90 rounded-2xl shadow-lg p-2 mb-4 h-full flex flex-col md:flex-row gap-5">
       <!-- Mapa -->
       <div class="flex-1 min-w-0">
         <div id="map" class="rounded-2xl overflow-hidden shadow-lg"></div>
