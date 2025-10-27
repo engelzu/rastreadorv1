@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Localização do Meu Celular</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { min-height: 100vh; }
@@ -28,7 +27,6 @@
       <div id="statusMsg" class="mt-2 text-center text-sm font-medium"></div>
     </form>
   </div>
-  <!-- Supabase Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
     // Troque seus dados abaixo pelos fornecidos no painel Supabase
@@ -71,14 +69,19 @@
       return new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(async function(pos) {
           statusMsg.textContent = "Enviando dados...";
-          // Atualiza a latitude e longitude pelo ID do celular
+          
+          // --- INÍCIO DA ALTERAÇÃO ---
+          // Agora também envia 'created_at' com a data e hora atuais
           const { error } = await supabase
             .from('usuarios_localizacao')
             .update({
               latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude
+              longitude: pos.coords.longitude,
+              created_at: new Date().toISOString() // <-- LINHA ADICIONADA
             })
             .eq('id', celularId);
+          // --- FIM DA ALTERAÇÃO ---
+
           if (!error) {
             statusMsg.textContent = "Localização enviada com sucesso!";
             resolve();
@@ -145,4 +148,4 @@
 
   </script>
 </body>
-</html>'''
+</html>
