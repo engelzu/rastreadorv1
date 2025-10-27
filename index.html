@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Localização dos Celulares</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 500px; }
+    .leaflet-popup-content-wrapper { border-radius: 0.75rem; }
+    .leaflet-popup-content { font-size: 1rem; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen">
+  <nav class="bg-white/90 shadow-lg mb-5 flex items-center justify-between px-6 py-3">
+    <span class="text-indigo-700 font-bold text-xl">Painel de Geolocalização</span>
+    <span class="text-gray-500 font-medium">Powered by Neon + Geoapify</span>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-4">
+    <section class="mb-7 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-3 md:mb-0 drop-shadow-lg">
+        Localização dos Celulares
+      </h1>
+      <button id="atualizarBtn"
+        class="bg-white hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-5 rounded-lg shadow transition-all">
+        Atualizar Dados
+      </button>
+    </section>
+    <!-- Painel principal com Mapa + Lista + Cadastro lado a lado -->
+    <div class="bg-white/90 rounded-2xl shadow-lg p-2 mb-4 flex flex-col md:flex-row gap-5">
+      <!-- Mapa -->
+      <div class="flex-1 min-w-0">
+        <div id="map" class="rounded-2xl overflow-hidden shadow-lg"></div>
+      </div>
+      <!-- Coluna lateral (Lista + Cadastro)-->
+      <div class="md:w-96 flex flex-col gap-5 justify-between">
+        <div>
+          <h2 class="text-xl text-indigo-700 font-bold mb-2">Celulares cadastrados</h2>
+          <ul id="listaCelulares" class="flex-1 space-y-2"></ul>
+        </div>
+        <!-- Formulário cadastral inline -->
+        <div class="bg-white rounded-xl shadow px-4 py-3">
+          <h2 class="text-lg font-bold text-indigo-700 mb-2">Cadastrar novo celular</h2>
+          <form id="cadastroForm" class="flex flex-col gap-3">
+            <div>
+              <label for="nome" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
+              <input type="text" id="nome" name="nome" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label for="numero" class="block text-xs font-semibold text-gray-700 mb-1">Número do celular:</label>
+              <input type="text" id="numero" name="numero" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition">Cadastrar</button>
+            <p id="mensagemCadastro" class="mt-1 text-xs"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+    <footer class="mt-8 text-white/70 text-center">Painel - NeonDB &copy; 2025</footer>
+  </main>
+
+  <!-- Script do CRUD de cadastro -->
+  <script>
+    const form = document.getElementById('cadastroForm');
+    const mensagemCadastro = document.getElementById('mensagemCadastro');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      mensagemCadastro.textContent = "Enviando cadastro...";
+      const dataApiUrl = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1/usuarios_localizacao";
+      const payload = {
+        nome: form.nome.value,
+        numero: form.numero.value
+        // Não envia lat/lon aqui!
+      };
+      try {
+        const res = await fetch(dataApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          mensagemCadastro.textContent = "Celular cadastrado com sucesso!";
+          form.reset();
+          buscarCelulares(); // Atualiza o painel e mapa!
+        } else {
+          const err = await res.text();
+          mensagemCadastro.textContent = "Erro ao cadastrar: " + err;
+        }
+      } catch (err) {
+        mensagemCadastro.textContent = "Erro de conexão com Neon Data API";
+      }
+    };
+  </script>
+  <!-- Leaflet JS + Mapa/Lista -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4";
+    const dataApiUrl = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1/usuarios_localizacao";
+    const map = L.map('map').setView([-14.2, -51.9], 4);
+
+    L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
+      attribution: '© OpenStreetMap, Geoapify',
+      maxZoom: 19,
+    }).addTo(map);
+
+    async function buscarCelulares() {
+      const res = await fetch(dataApiUrl);
+      const lista = await res.json();
+
+      if (window.markers) window.markers.forEach(m => map.removeLayer(m));
+      window.markers = [];
+      document.getElementById('listaCelulares').innerHTML = '';
+
+      lista
+      .filter(c => c.latitude && c.longitude)
+      .forEach(({ nome, numero, latitude, longitude, created_at }) => {
+        const markerIcon = L.icon({
+          iconUrl: `https://api.geoapify.com/v1/icon/?type=awesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`,
+          iconSize: [38, 58],
+          iconAnchor: [19, 56],
+          popupAnchor: [0, -50],
+        });
+
+        const texto = `
+          <div class="text-indigo-700 font-bold text-lg mb-1">${nome}</div>
+          <div class="font-medium text-gray-600">Celular: <span>${numero}</span></div>
+          <div class="text-xs text-gray-600 mt-1">Registrado: ${created_at ? new Date(created_at).toLocaleString() : '---'}</div>
+          <div class="text-xs text-gray-600">Latitude: ${latitude?.toFixed(6)}, Longitude: ${longitude?.toFixed(6)}</div>
+        `;
+
+        const marker = L.marker([latitude, longitude], { icon: markerIcon }).addTo(map).bindPopup(texto);
+        window.markers.push(marker);
+
+        const item = document.createElement('li');
+        item.className = 'px-3 py-2 bg-indigo-50 rounded-lg shadow border-l-4 border-indigo-500 text-sm font-medium flex items-center justify-between gap-2';
+        item.innerHTML = `
+          <span>${nome}</span>
+          <a href="tel:${numero}" class="text-indigo-700 underline" title="Ligar">${numero}</a>
+          <span class="text-xs text-gray-500 font-normal">${created_at ? new Date(created_at).toLocaleString() : ''}</span>
+        `;
+        document.getElementById('listaCelulares').appendChild(item);
+      });
+
+      // Centraliza se houver pelo menos 1 marcador
+      if (window.markers && window.markers.length > 0) {
+        const marker = window.markers[0];
+        map.setView(marker.getLatLng(), 14);
+      }
+    }
+
+    document.getElementById('atualizarBtn').onclick = buscarCelulares;
+    buscarCelulares();
+  </script>
+</body>
+</html>
