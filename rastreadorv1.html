@@ -7,7 +7,7 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { min-height: 100vh;}
+    body { min-height: 100vh; }
   </style>
 </head>
 <body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen flex items-center justify-center">
@@ -28,23 +28,28 @@
       <div id="statusMsg" class="mt-2 text-center text-sm font-medium"></div>
     </form>
   </div>
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const apiBase = "https://ep-gentle-wave-ad0czqae.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1";
-    const celularesUrl = apiBase + "/usuarios_localizacao";
+    // Troque seus dados abaixo pelos fornecidos no painel Supabase
+    const SUPABASE_URL = 'https://rptxfjlxymfmxucctuhc.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // Preenche o dropdown com os celulares cadastrados
     async function carregarCelulares() {
-      const res = await fetch(celularesUrl);
-      const lista = await res.json();
+      const { data: lista } = await supabase
+        .from('usuarios_localizacao')
+        .select('id,nome,numero');
       const select = document.getElementById('celularSelect');
       select.innerHTML = '<option value="">Selecione...</option>';
-      lista.forEach(c => {
+      (lista || []).forEach(c => {
         select.innerHTML += `<option value="${c.id}">${c.nome} (${c.numero})</option>`;
       });
     }
     carregarCelulares();
 
-    // Enviar localização ao Neon
+    // Enviar localização ao Supabase
     document.getElementById('liberarBtn').onclick = async function () {
       const celularId = document.getElementById('celularSelect').value;
       const statusMsg = document.getElementById('statusMsg');
@@ -63,27 +68,18 @@
       statusMsg.textContent = "Obtendo localização...";
       navigator.geolocation.getCurrentPosition(async function(pos) {
         statusMsg.textContent = "Enviando dados...";
-        // Busca registro completo pelo id para editar
-        const res = await fetch(`${celularesUrl}?id=eq.${celularId}`);
-        const [registro] = await res.json();
-        if (!registro) {
-          statusMsg.textContent = "Registro não encontrado.";
-          return;
-        }
-        // Atualiza posição
-        const payload = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude
-        };
-        const updateRes = await fetch(`${celularesUrl}?id=eq.${celularId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        if (updateRes.ok) {
+        // Atualiza a latitude e longitude pelo ID do celular
+        const { error } = await supabase
+          .from('usuarios_localizacao')
+          .update({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          })
+          .eq('id', celularId);
+        if (!error) {
           statusMsg.textContent = "Localização enviada com sucesso!";
         } else {
-          statusMsg.textContent = "Erro ao enviar localização.";
+          statusMsg.textContent = "Erro ao enviar localização: " + error.message;
         }
       }, function(erro) {
         statusMsg.textContent = "Permissão de localização negada ou erro.";
