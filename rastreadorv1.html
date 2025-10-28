@@ -5,6 +5,7 @@
   <title>Localização do Meu Celular</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="manifest.json">
   <style>
     body { min-height: 100vh; }
   </style>
@@ -98,7 +99,7 @@
     
     // 3. Modificar o evento de clique para usar a nova função e iniciar o intervalo
     let intervaloLocalizacao = null;
-    const INTERVALO_MS = 10 * 60 * 1000; // 10 minutos em milissegundos
+    const INTERVALO_MS = 5 * 60 * 1000; // 5 minutos em milissegundos
     
     // Função principal de inicialização
     function iniciarRastreamento() {
@@ -128,7 +129,31 @@
       }, INTERVALO_MS);
     }
     
-    // Inicialização
+    // Variável global para o Wake Lock
+let wakeLock = null;
+
+// Função para solicitar o Wake Lock
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake Lock ativo!');
+    } catch (err) {
+      console.error(`${err.name}, ${err.message}`);
+    }
+  }
+}
+
+// Função para liberar o Wake Lock
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release();
+    wakeLock = null;
+    console.log('Wake Lock liberado.');
+  }
+}
+
+// Inicialização
     document.addEventListener('DOMContentLoaded', (event) => {
         carregarCelulares().then(() => {
             // 2. Salvar o valor selecionado no localStorage sempre que mudar
@@ -139,13 +164,40 @@
             document.getElementById('liberarBtn').onclick = iniciarRastreamento;
 
             // 4. Tentar iniciar o rastreamento automaticamente se um celular estiver pré-selecionado
-            const celularId = document.getElementById('celularSelect').value;
-            if (celularId) {
-                iniciarRastreamento();
+
+            }
+            
+            // Adiciona listener para liberar o Wake Lock quando a página fica invisível
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') {
+                requestWakeLock();
+              } else {
+                releaseWakeLock();
+              }
+            });
+            
+            // Solicita o Wake Lock na inicialização
+            requestWakeLock();
+
+
             }
         });
     });
 
+  </script>
+  <script>
+    // Registro do Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => {
+            console.log('Service Worker registrado com sucesso:', registration);
+          })
+          .catch(error => {
+            console.log('Falha no registro do Service Worker:', error);
+          });
+      });
+    }
   </script>
 </body>
 </html>
