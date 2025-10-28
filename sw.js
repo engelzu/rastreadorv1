@@ -38,4 +38,3 @@ self.addEventListener('fetch', event => {
 // Este Service Worker básico foca no cache para tornar o app instalável.
 // Para o rastreamento, o código em rastreadorv1.html (Wake Lock e setInterval)
 // é a melhor solução possível sem APIs de background sync.
-
