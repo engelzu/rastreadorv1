@@ -116,8 +116,10 @@ const osmLibertyLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liber
   maxZoom: 19,
 });
 
-const satelliteLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/satellite/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
-  attribution: '© Geoapify',
+// [Código de TESTE]
+
+const satelliteLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
+  attribution: '© OpenStreetMap, Geoapify',
   maxZoom: 19,
 });
 
