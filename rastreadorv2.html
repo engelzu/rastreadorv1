@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Rastreador com Web Worker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { min-height: 100vh; }
+    .status-indicator {
+      width: 12px; height: 12px; border-radius: 50%;
+      display: inline-block; margin-right: 8px;
+    }
+    .status-active { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+    .status-inactive { background-color: #ef4444; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-md rounded-2xl shadow-2xl bg-white/95 mx-auto p-6 mt-5 mb-6">
+    <h1 class="text-2xl font-extrabold text-indigo-700 mb-4 text-center drop-shadow">🗺️ Rastreador Ultra-Robusto</h1>
+    
+    <div id="statusContainer" class="mb-4 p-4 rounded-xl border-2 border-gray-200 bg-gray-50">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-bold text-gray-700">Status:</span>
+        <div id="statusIndicator" class="flex items-center">
+          <span class="status-indicator status-inactive"></span>
+          <span id="statusText" class="text-sm font-medium text-gray-600">Inativo</span>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500">
+        <div>Intervalo: <span class="font-semibold">5 minutos</span></div>
+        <div>Último envio: <span id="ultimoEnvio" class="font-semibold">Nunca</span></div>
+        <div>Próximo envio: <span id="proximoEnvio" class="font-semibold">---</span></div>
+        <div>Envios realizados: <span id="contagemEnvios" class="font-semibold">0</span></div>
+        <div class="mt-2 pt-2 border-t">
+          <span class="font-semibold text-purple-600">✓</span> Web Worker ativo
+          <div class="text-[10px] text-gray-400 mt-1">Thread separada - nunca pausa</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="enviarLocalizacaoForm" class="flex flex-col gap-5">
+      <div>
+        <label for="celularSelect" class="block text-indigo-700 font-semibold mb-1 text-sm">Selecione seu celular:</label>
+        <select id="celularSelect" required class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base shadow">
+          <option value="">Carregando...</option>
+        </select>
+        <div id="loadingMsg" class="mt-2 text-xs text-gray-500"></div>
+      </div>
+      
+      <button type="button" id="liberarBtn"
+        class="w-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold rounded-xl py-3 shadow-xl text-lg hover:scale-105 transition active:scale-95">
+        🚀 Iniciar Rastreamento
+      </button>
+      
+      <button type="button" id="pararBtn"
+        class="w-full bg-gradient-to-tr from-red-600 to-red-700 text-white font-bold rounded-xl py-3 shadow-xl text-lg hover:scale-105 transition active:scale-95 hidden">
+        ⏹️ Parar Rastreamento
+      </button>
+      
+      <div id="statusMsg" class="mt-2 text-center text-sm font-medium"></div>
+    </form>
+
+    <div id="workerInfo" class="mt-4 p-3 rounded-lg bg-purple-50 border border-purple-200 text-xs text-purple-800 hidden">
+      <p class="font-semibold mb-1">⚡ Web Worker Ativado</p>
+      <p>Thread separada rodando - funciona mesmo com tela desligada!</p>
+      <p class="mt-1 text-[10px]">Worker Status: <span id="workerStatus" class="font-semibold">Conectado</span></p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const SUPABASE_URL = 'https://rptxfjlxymfmxucctuhc.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const INTERVALO_MS = 5 * 60 * 1000;
+    
+    let worker = null;
+    let contagemEnvios = 0;
+    let ultimoEnvioTimestamp = 0;
+    let proximoEnvioTimeout = null;
+
+    const celularSelect = document.getElementById('celularSelect');
+    const liberarBtn = document.getElementById('liberarBtn');
+    const pararBtn = document.getElementById('pararBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const loadingMsg = document.getElementById('loadingMsg');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const ultimoEnvioEl = document.getElementById('ultimoEnvio');
+    const proximoEnvioEl = document.getElementById('proximoEnvio');
+    const contagemEnviosEl = document.getElementById('contagemEnvios');
+    const workerInfo = document.getElementById('workerInfo');
+    const workerStatus = document.getElementById('workerStatus');
+
+    // ==================== WEB WORKER ====================
+
+    function inicializarWorker() {
+      try {
+        worker = new Worker('worker_location.js');
+        console.log('✅ Web Worker criado');
+        
+        worker.addEventListener('message', (e) => {
+          const { tipo, celularId, timestamp } = e.data;
+          console.log('[MAIN] Mensagem do worker:', tipo);
+          
+          switch (tipo) {
+            case 'SOLICITAR_LOCALIZACAO':
+              verificarEEnviar(celularId);
+              break;
+              
+            case 'RASTREAMENTO_INICIADO':
+              workerStatus.textContent = 'Rastreando';
+              workerStatus.className = 'font-semibold text-green-600';
+              break;
+              
+            case 'RASTREAMENTO_PARADO':
+              workerStatus.textContent = 'Parado';
+              workerStatus.className = 'font-semibold text-red-600';
+              break;
+              
+            case 'HEARTBEAT':
+              console.log('💚 Worker heartbeat OK');
+              workerStatus.textContent = 'Ativo ✓';
+              break;
+              
+            case 'PONG':
+              console.log('🏓 Worker respondeu ping');
+              break;
+          }
+        });
+        
+        worker.addEventListener('error', (e) => {
+          console.error('❌ Erro no worker:', e);
+          workerStatus.textContent = 'Erro';
+          workerStatus.className = 'font-semibold text-red-600';
+        });
+        
+        return true;
+      } catch (err) {
+        console.error('❌ Falha ao criar worker:', err);
+        return false;
+      }
+    }
+
+    async function verificarEEnviar(celularId) {
+      const agora = Date.now();
+      const tempoDecorrido = agora - ultimoEnvioTimestamp;
+      
+      if (tempoDecorrido < INTERVALO_MS && ultimoEnvioTimestamp > 0) {
+        console.log('⏰ Ainda não passou 5min');
+        return;
+      }
+      
+      console.log('⏰ Tempo passou! Enviando...');
+      await obterEEnviarLocalizacao(celularId);
+    }
+
+    // ==================== PERMISSÕES ====================
+
+    async function solicitarPermissaoNotificacao() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    }
+
+    function enviarNotificacao(titulo, mensagem) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(titulo, {
+            body: mensagem,
+            icon: '/icon-192x192.png',
+            tag: 'rastreamento-gps'
+          });
+        } catch (err) {
+          console.log('Erro notificação:', err);
+        }
+      }
+    }
+
+    // ==================== UI ====================
+
+    function atualizarStatusUI(ativo) {
+      if (ativo) {
+        statusIndicator.innerHTML = '<span class="status-indicator status-active pulse"></span>';
+        statusText.textContent = 'Rastreando';
+        statusText.className = 'text-sm font-medium text-green-600';
+        liberarBtn.classList.add('hidden');
+        pararBtn.classList.remove('hidden');
+        workerInfo.classList.remove('hidden');
+      } else {
+        statusIndicator.innerHTML = '<span class="status-indicator status-inactive"></span>';
+        statusText.textContent = 'Inativo';
+        statusText.className = 'text-sm font-medium text-gray-600';
+        liberarBtn.classList.remove('hidden');
+        pararBtn.classList.add('hidden');
+        proximoEnvioEl.textContent = '---';
+        workerInfo.classList.add('hidden');
+      }
+    }
+
+    function atualizarContagemRegressiva() {
+      if (proximoEnvioTimeout) {
+        clearInterval(proximoEnvioTimeout);
+      }
+
+      const fimContagem = ultimoEnvioTimestamp + INTERVALO_MS;
+
+      proximoEnvioTimeout = setInterval(() => {
+        const agora = Date.now();
+        const restante = fimContagem - agora;
+
+        if (restante <= 0) {
+          proximoEnvioEl.textContent = 'Enviando...';
+          return;
+        }
+
+        const min = Math.floor(restante / 60000);
+        const seg = Math.floor((restante % 60000) / 1000);
+        proximoEnvioEl.textContent = min + 'm ' + seg + 's';
+      }, 1000);
+    }
+
+    // ==================== SUPABASE ====================
+
+    async function carregarCelulares() {
+      try {
+        loadingMsg.textContent = '🔄 Carregando...';
+        loadingMsg.className = 'mt-2 text-xs text-blue-600';
+        
+        const { data, error } = await supabase
+          .from('usuarios_localizacao')
+          .select('id,nome,numero');
+        
+        if (error) throw error;
+
+        celularSelect.innerHTML = '<option value="">Selecione...</option>';
+        
+        if (data && data.length > 0) {
+          data.forEach(c => {
+            celularSelect.innerHTML += `<option value="${c.id}">${c.nome} (${c.numero})</option>`;
+          });
+          loadingMsg.textContent = `✅ ${data.length} celular(es)`;
+          loadingMsg.className = 'mt-2 text-xs text-green-600';
+        }
+        
+        const savedId = localStorage.getItem('lastSelectedCelularId');
+        if (savedId) celularSelect.value = savedId;
+
+        const rastreamentoAtivo = localStorage.getItem('rastreamentoAtivo') === 'true';
+        const contagemSalva = localStorage.getItem('contagemEnvios');
+        const ultimoEnvioSalvo = localStorage.getItem('ultimoEnvioTimestamp');
+        
+        if (contagemSalva) {
+          contagemEnvios = parseInt(contagemSalva);
+          contagemEnviosEl.textContent = contagemEnvios;
+        }
+
+        if (ultimoEnvioSalvo) {
+          ultimoEnvioTimestamp = parseInt(ultimoEnvioSalvo);
+          ultimoEnvioEl.textContent = new Date(ultimoEnvioTimestamp).toLocaleTimeString('pt-BR');
+        }
+
+        if (rastreamentoAtivo && savedId) {
+          setTimeout(() => iniciarRastreamento(), 1000);
+        }
+      } catch (err) {
+        console.error('Erro:', err);
+        loadingMsg.textContent = '❌ Erro: ' + err.message;
+        loadingMsg.className = 'mt-2 text-xs text-red-600';
+      }
+    }
+    
+    async function obterEEnviarLocalizacao(celularId) {
+      if (!celularId) return false;
+      
+      statusMsg.textContent = "📍 Obtendo localização...";
+      statusMsg.className = 'mt-2 text-center text-sm font-medium text-blue-600';
+      console.log('📍 Solicitando GPS...');
+      
+      try {
+        const posicao = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+          });
+        });
+
+        console.log('✅ GPS:', posicao.coords.latitude, posicao.coords.longitude);
+        statusMsg.textContent = "📤 Enviando...";
+        
+        const { error } = await supabase
+          .from('usuarios_localizacao')
+          .update({
+            latitude: posicao.coords.latitude,
+            longitude: posicao.coords.longitude,
+            created_at: new Date().toISOString()
+          })
+          .eq('id', celularId);
+
+        if (error) throw error;
+
+        contagemEnvios++;
+        ultimoEnvioTimestamp = Date.now();
+        
+        localStorage.setItem('contagemEnvios', contagemEnvios);
+        localStorage.setItem('ultimoEnvioTimestamp', ultimoEnvioTimestamp);
+        
+        contagemEnviosEl.textContent = contagemEnvios;
+        
+        const horario = new Date().toLocaleTimeString('pt-BR');
+        ultimoEnvioEl.textContent = horario;
+        statusMsg.textContent = '✅ Enviado às ' + horario;
+        statusMsg.className = 'mt-2 text-center text-sm font-medium text-green-600';
+        
+        console.log('✅ Envio #' + contagemEnvios);
+        enviarNotificacao('Localização Enviada', 'Envio #' + contagemEnvios);
+        
+        atualizarContagemRegressiva();
+        return true;
+      } catch (erro) {
+        console.error('❌ Erro:', erro);
+        statusMsg.textContent = "❌ Erro";
+        statusMsg.className = 'mt-2 text-center text-sm font-medium text-red-600';
+        return false;
+      }
+    }
+
+    // ==================== CONTROLE ====================
+    
+    async function iniciarRastreamento() {
+      const celularId = celularSelect.value;
+      
+      if (!celularId) {
+        statusMsg.textContent = "❌ Selecione um celular";
+        statusMsg.className = 'mt-2 text-center text-sm font-medium text-red-600';
+        return;
+      }
+
+      console.log('🚀 Iniciando:', celularId);
+
+      await solicitarPermissaoNotificacao();
+      
+      localStorage.setItem('rastreamentoAtivo', 'true');
+      localStorage.setItem('lastSelectedCelularId', celularId);
+      
+      atualizarStatusUI(true);
+      
+      const sucesso = await obterEEnviarLocalizacao(celularId);
+      
+      if (!sucesso) {
+        pararRastreamento();
+        return;
+      }
+
+      if (worker) {
+        worker.postMessage({ tipo: 'INICIAR', dados: { celularId } });
+      }
+
+      enviarNotificacao('Rastreamento Iniciado', 'Web Worker ativo - Envio a cada 5 min');
+    }
+    
+    function pararRastreamento() {
+      console.log('⏹️ Parando...');
+      
+      if (worker) {
+        worker.postMessage({ tipo: 'PARAR' });
+      }
+      
+      localStorage.setItem('rastreamentoAtivo', 'false');
+      atualizarStatusUI(false);
+      statusMsg.textContent = "⏹️ Parado";
+      statusMsg.className = 'mt-2 text-center text-sm font-medium text-gray-600';
+      
+      if (proximoEnvioTimeout) {
+        clearInterval(proximoEnvioTimeout);
+      }
+      
+      enviarNotificacao('Parado', 'Rastreamento interrompido');
+    }
+
+    // ==================== INIT ====================
+
+    celularSelect.addEventListener('change', (e) => {
+      const id = e.target.value;
+      if (id) {
+        localStorage.setItem('lastSelectedCelularId', id);
+        loadingMsg.textContent = '✅ Selecionado';
+        loadingMsg.className = 'mt-2 text-xs text-green-600';
+      }
+    });
+
+    liberarBtn.addEventListener('click', iniciarRastreamento);
+    pararBtn.addEventListener('click', pararRastreamento);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ App voltou');
+        const celularId = localStorage.getItem('lastSelectedCelularId');
+        if (celularId) verificarEEnviar(celularId);
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('🚀 Inicializando...');
+      
+      if (inicializarWorker()) {
+        console.log('✅ Worker OK');
+      } else {
+        console.warn('⚠️ Worker falhou, usando fallback');
+      }
+      
+      await carregarCelulares();
+    });
+
+  </script>
+</body>
+</html>
