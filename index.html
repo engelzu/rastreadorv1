@@ -118,18 +118,21 @@ const osmLibertyLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liber
 
 // [Código de TESTE]
 
-const satelliteLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
-  attribution: '© OpenStreetMap, Geoapify',
-  maxZoom: 19,
+// [SOLUÇÃO FINAL - Satélite Gratuito da Esri]
+
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  maxZoom: 19
 });
 
 // 2. Adicione a camada que você quer que seja a padrão
 osmLibertyLayer.addTo(map);
 
 // 3. Crie o objeto com as camadas base para o controle
+// [Verifique se o seu controle está assim]
 const baseMaps = {
   "Mapa (Padrão)": osmLibertyLayer,
-  "Satélite": satelliteLayer
+  "Satélite": satelliteLayer 
 };
 
 // 4. Adicione o controle de camadas ao mapa
