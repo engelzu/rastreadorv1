@@ -83,7 +83,7 @@
         </div>
       </div>
     </div>
-    <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB &copy; 2025</footer>
+    <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB © 2025</footer>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
@@ -108,7 +108,7 @@
     
     // [SOLUÇÃO FINAL - Satélite Gratuito da Esri]
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
       maxZoom: 19
     });
 
@@ -124,30 +124,47 @@
     // 4. Adicione o controle de camadas ao mapa
     L.control.layers(baseMaps).addTo(map);
 
-    // --- 2. NOVO: FUNÇÕES DE COMPARTILHAMENTO DO POPUP ---
+    // --- 2. NOVO: FUNÇÕES DE COMPARTILHAMENTO E DELEÇÃO DO POPUP ---
 
-    // Função para o botão "Copiar"
+    // Função para o botão "Copiar" (ATUALIZADA)
     function copiarCoords(lat, lng) {
-      const coords = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      navigator.clipboard.writeText(coords).then(() => {
-        alert('Coordenadas copiadas: ' + coords);
+      // Agora copia o link do Google Maps em vez de apenas as coordenadas
+      const googleMapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      navigator.clipboard.writeText(googleMapsLink).then(() => {
+        alert('Link do Google Maps copiado!');
       }, () => {
-        alert('Falha ao copiar coordenadas.');
+        alert('Falha ao copiar o link.');
       });
     }
 
-    // Função para o botão "WhatsApp"
+    // Função para o botão "WhatsApp" (CORRIGIDA)
     function shareWhatsApp(nome, lat, lng) {
-      // Cria um link do Google Maps (mais universal)
-      const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      const texto = `Localização para a máquina *${nome}*:\n${googleMapsLink}`;
+      // Corrigido o link do Google Maps para o formato correto
+      const googleMapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const texto = `Localização para *${nome}*:\n${googleMapsLink}`;
       
-      // Cria o link do WhatsApp
       const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
-      
-      // Abre em uma nova aba
       window.open(whatsappLink, '_blank');
     }
+
+    // Função para o botão "Excluir" (NOVA)
+    async function deletarPonto(id) {
+      if (!confirm('Tem certeza que deseja excluir este Ponto de Interesse?')) return;
+
+      const { error } = await supabase
+        .from('usuarios_localizacao')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("Erro ao excluir o ponto: " + error.message);
+      } else {
+        alert("Ponto excluído com sucesso!");
+        map.closePopup(); // Fecha o popup aberto
+        buscarCelulares(); // Recarrega os dados do mapa
+      }
+    }
+
 
     // --- 3. MODIFICADO: Função buscarCelulares atualizada ---
     async function buscarCelulares() {
@@ -166,7 +183,7 @@
       (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at, icone_maquina }) => {
         
         // --- Lógica de ícone atualizada ---
-        const isPontoMarcado = !numero; // Se NÃO tem número, é um ponto (máquina)
+        const isPontoMarcado = !numero; // Se NÃO tem número (ou é ''), é um ponto (máquina)
         
         const iconeCor = isPontoMarcado ? '%23c91f1f' : '%23631fc9'; // Vermelho para ponto, Roxo para celular
         const iconeLabel = isPontoMarcado ? 'location-pin' : (icone_maquina || 'mobile-alt'); // Icone 'pino' para ponto, icone do celular para... celular
@@ -189,9 +206,13 @@
           <div class="text-xs text-gray-600 mt-1">Registrado: ${created_at ? new Date(created_at).toLocaleString() : '---'}</div>
           <div class="text-xs text-gray-600">Lat: ${latitude?.toFixed(6)}, Lng: ${longitude?.toFixed(6)}</div>
           
-          <div class="mt-3 flex gap-2">
+          <div class="mt-3 flex flex-wrap gap-2">
             <button onclick="copiarCoords(${latitude}, ${longitude})" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded transition-all">Copiar</button>
             <button onclick="shareWhatsApp('${nome.replace(/'/g, "\\'")}', ${latitude}, ${longitude})" class="bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-2 rounded transition-all">WhatsApp</button>
+            ${isPontoMarcado ? 
+              `<button onclick="deletarPonto(${id})" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition-all">Excluir</button>` : 
+              ''
+            }
           </div>
         `;
         // --- Fim da lógica de Popup ---
@@ -440,7 +461,7 @@
 	        submitBtn.textContent = "Cadastrar Ícone";
 	        document.getElementById('formIconeTitulo').textContent = "Cadastrar Novo Ícone";
 	        buscarIcones();
-	        carregarIconesParaSelect();
+	        carregarIconeParaSelect();
 	        buscarCelulares(); // Atualiza mapa
 	      };
 	    }
@@ -479,15 +500,15 @@
           if (nomeMaquina) {
             const { lat, lng } = e.latlng;
             
-            // Salva no Supabase (mesma tabela, mas sem 'numero')
+            // Salva no Supabase (mesma tabela, mas com 'numero' como texto vazio)
             const { error } = await supabase
               .from('usuarios_localizacao')
               .insert([
                 { 
                   nome: nomeMaquina, 
                   latitude: lat, 
-                  longitude: lng
-                  // 'numero' e 'icone_maquina' ficarão nulos
+                  longitude: lng,
+                  numero: '' // <--- CORREÇÃO APLICADA AQUI
                 }
               ]);
 
