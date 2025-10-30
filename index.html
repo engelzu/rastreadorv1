@@ -105,8 +105,35 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
-    const map = L.map('map').setView([-14.2, -51.9], 4);
+    // [Código modificado com a opção de Satélite]
+
+const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
+const map = L.map('map').setView([-14.2, -51.9], 4);
+
+// 1. Defina as duas camadas de mapa (Layers)
+const osmLibertyLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
+  attribution: '© OpenStreetMap, Geoapify',
+  maxZoom: 19,
+});
+
+const satelliteLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/satellite/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
+  attribution: '© Geoapify',
+  maxZoom: 19,
+});
+
+// 2. Adicione a camada que você quer que seja a padrão
+osmLibertyLayer.addTo(map);
+
+// 3. Crie o objeto com as camadas base para o controle
+const baseMaps = {
+  "Mapa (Padrão)": osmLibertyLayer,
+  "Satélite": satelliteLayer
+};
+
+// 4. Adicione o controle de camadas ao mapa
+L.control.layers(baseMaps).addTo(map);
+
+// ... (resto do código)
 
     L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
       attribution: '© OpenStreetMap, Geoapify',
