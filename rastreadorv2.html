@@ -2,7 +2,6 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <!-- O título da página agora é GEOMAQ -->
   <title>GEOMAQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="manifest" href="manifest.json">
@@ -42,24 +41,20 @@
 </head>
 <body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 text-gray-900">
 
-  <!-- Header com Título e Menu Sanduíche -->
   <header class="bg-white/90 shadow-md p-4 flex justify-between items-center sticky top-0 z-20">
     <div>
       <h1 class="text-xl font-extrabold text-indigo-700 drop-shadow">GEOMAQ</h1>
       <p class="text-sm text-gray-600 font-medium">LOCALIZAR DE MÁQUINAS</p>
     </div>
     <button id="menuButton" class="p-2 z-40">
-      <!-- Ícone do Menu (Sanduíche) -->
       <svg class="w-6 h-6 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-4 6h16"></path>
       </svg>
     </button>
   </header>
 
-  <!-- Overlay do Menu -->
   <div id="menuOverlay" class="fixed inset-0 bg-black/50 z-20 md:hidden"></div>
 
-  <!-- Navegação (Menu Lateral) -->
   <nav id="menuNav" class="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-30 p-6">
     <h2 class="text-lg font-bold text-indigo-700 mb-6">Menu</h2>
     <ul>
@@ -72,14 +67,11 @@
     </ul>
   </nav>
 
-  <!-- Conteúdo Principal -->
   <div class="relative min-h-screen">
     
-    <!-- PÁGINA INICIAL (HOME) -->
     <main id="homePage" class="page-content p-6 flex flex-col items-center justify-center text-center" style="min-height: 80vh;">
       <h2 class="text-3xl font-bold text-white mb-8 drop-shadow-lg">Bem-vindo</h2>
       
-      <!-- SELEÇÃO DE CELULAR MOVIDA PARA CÁ -->
       <div class="w-full max-w-md mb-8">
         <label for="celularSelect" class="block text-white/90 font-semibold mb-2 text-sm text-left">Selecione seu celular:</label>
         <select id="celularSelect" required class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base shadow text-gray-900">
@@ -88,7 +80,6 @@
         <div id="loadingMsg" class="mt-2 text-xs text-white/80 text-left"></div>
       </div>
       
-      <!-- Botão "ENTROU AQUI" -->
       <button id="homeEntrouBtn" 
               class="w-48 h-48 bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-bold text-2xl
                      rounded-2xl shadow-2xl 
@@ -103,8 +94,6 @@
       <div id="homeStatusMsg" class="mt-6 text-center text-lg font-medium text-white/90"></div>
     </main>
 
-    <!-- PÁGINA DE RASTREAMENTO (Oculta por padrão) -->
-    <!-- Este é o seu código original, agora dentro de um <main> -->
     <main id="rastreadorPage" class="page-content p-6 hidden flex items-center justify-center" style="min-height: 80vh;">
       <div class="w-full max-w-md rounded-2xl shadow-2xl bg-white/95 mx-auto p-6">
         <h1 class="text-2xl font-extrabold text-indigo-700 mb-4 text-center drop-shadow">🗺️ Configurar Rastreador</h1>
@@ -130,8 +119,6 @@
         </div>
 
         <form id="enviarLocalizacaoForm" class="flex flex-col gap-5">
-          <!-- SELEÇÃO DE CELULAR REMOVIDA DESTA PÁGINA -->
-          
           <button type="button" id="liberarBtn"
             class="w-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold rounded-xl py-3 shadow-xl text-lg hover:scale-105 transition active:scale-95">
             🚀 Iniciar Rastreamento
@@ -153,10 +140,7 @@
       </div>
     </main>
 
-  </div> <!-- Fim do Conteúdo Principal -->
-
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  </div> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
     // ===================================================
     // TODO O SEU CÓDIGO ORIGINAL ESTÁ AQUI SEM MUDANÇAS
@@ -549,6 +533,23 @@
           .eq('id', celularId);
 
         if (error) throw error;
+        
+        // ================== INÍCIO DA MODIFICAÇÃO (HISTÓRICO) ==================
+        // Agora, INSERE um registro na tabela de histórico
+        const { error: errorHistorico } = await supabase
+          .from('historico_localizacao')
+          .insert({
+            usuario_id: celularId,
+            latitude: posicao.coords.latitude,
+            longitude: posicao.coords.longitude
+          });
+          
+        if (errorHistorico) {
+            // Se falhar em salvar o histórico, apenas loga no console,
+            // mas não impede o resto da função de continuar.
+            console.error('❌ Erro ao salvar histórico:', errorHistorico.message);
+        }
+        // =================== FIM DA MODIFICAÇÃO (HISTÓRICO) ====================
 
         contagemEnvios++;
         ultimoEnvioTimestamp = Date.now();
@@ -765,4 +766,3 @@
   </script>
 </body>
 </html>
-
