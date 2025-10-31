@@ -97,6 +97,12 @@
             
             <div>
               <h2 class="text-xl text-indigo-700 font-bold mb-2">Histórico de Trajeto</h2>
+              
+              <div class="flex gap-2 items-center mb-2">
+                <label for="dataTrajeto" class="text-sm font-medium text-gray-700">Filtrar por Dia:</label>
+                <input type="date" id="dataTrajeto" class="p-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+
               <div id="historicoContainer" class="bg-indigo-50 rounded-lg shadow-inner border-l-4 border-indigo-500 p-3 max-h-60 overflow-y-auto">
                   <p id="historicoStatus" class="text-gray-500">Selecione "Trajeto" de um celular para ver o histórico.</p>
                   <table id="historicoTabela" class="min-w-full text-sm hidden">
@@ -126,10 +132,8 @@
 
     const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
     const map = L.map('map').setView([-14.2, -51.9], 4);
-
-    // ================== INÍCIO DA MODIFICAÇÃO (HISTÓRICO) ==================
+    
     let polylineLayer = null; // Guarda a linha do trajeto no mapa
-    // =================== FIM DA MODIFICAÇÃO (HISTÓRICO) ====================
 
     // 1. Defina as duas camadas de mapa (Layers)
     const osmLibertyLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
@@ -254,7 +258,6 @@
             const item = document.createElement('li');
             item.className = 'px-3 py-2 bg-indigo-50 rounded-lg shadow border-l-4 border-indigo-500 text-sm font-medium flex items-center justify-between gap-2';
             
-            // ================== INÍCIO DA MODIFICAÇÃO (HISTÓRICO) ==================
             // innerHTML da lista de celulares modificado para incluir botão "Trajeto"
             item.innerHTML = `
               <div class="flex-1 min-w-0">
@@ -270,7 +273,6 @@
                 </div>
               </div>
             `;
-            // =================== FIM DA MODIFICAÇÃO (HISTÓRICO) ====================
             
             document.getElementById('listaCelulares').appendChild(item);
         }
@@ -312,13 +314,18 @@
       titulo.textContent = 'Cadastrar Novo Celular';
     }
 
-    // ================== INÍCIO DA NOVA FUNÇÃO (HISTÓRICO) ==================
-    async function buscarHistorico(usuarioId, nomeUsuario) {
+    // ================== FUNÇÃO DE HISTÓRICO TOTALMENTE ATUALIZADA ==================
+    async function buscarHistorico(usuarioId, nomeUsuario, dataSelecionada) {
         const historicoStatus = document.getElementById('historicoStatus');
         const historicoTabela = document.getElementById('historicoTabela');
         const historicoLista = document.getElementById('historicoLista');
         
-        historicoStatus.textContent = `Carregando histórico para ${nomeUsuario}...`;
+        if (!dataSelecionada) {
+            historicoStatus.textContent = "Por favor, selecione uma data.";
+            return;
+        }
+
+        historicoStatus.textContent = `Calculando trajeto de ${nomeUsuario} para ${dataSelecionada}...`;
         historicoStatus.classList.remove('hidden');
         historicoTabela.classList.add('hidden');
         historicoLista.innerHTML = '';
@@ -329,10 +336,19 @@
             polylineLayer = null;
         }
 
+        // Define o início e o fim do dia selecionado
+        const inicioDoDia = new Date(dataSelecionada);
+        inicioDoDia.setHours(0, 0, 0, 0);
+        const fimDoDia = new Date(dataSelecionada);
+        fimDoDia.setHours(23, 59, 59, 999);
+
+        // Busca no Supabase filtrando pelo ID e pelo intervalo de data
         const { data, error } = await supabase
             .from('historico_localizacao')
             .select('latitude, longitude, created_at')
             .eq('usuario_id', usuarioId)
+            .gte('created_at', inicioDoDia.toISOString())
+            .lte('created_at', fimDoDia.toISOString())
             .order('created_at', { ascending: true }); // Ascendente para desenhar a linha na ordem correta
 
         if (error) {
@@ -340,13 +356,12 @@
             return;
         }
 
-        if (data.length === 0) {
-            historicoStatus.textContent = `Nenhum histórico encontrado para ${nomeUsuario}.`;
+        if (data.length < 2) {
+            historicoStatus.textContent = `Não há pontos suficientes (mín. 2) para ${nomeUsuario} neste dia.`;
             return;
         }
-
-        const latlngs = [];
-        // Invertemos para a lista mostrar o mais recente primeiro
+        
+        // Preenche a tabela de histórico (mais recente primeiro)
         data.slice().reverse().forEach(ponto => {
             const item = document.createElement('tr');
             item.className = 'border-b border-indigo-100 hover:bg-indigo-200';
@@ -356,55 +371,86 @@
             `;
             historicoLista.appendChild(item);
         });
-        
-        // Pegamos as coordenadas na ordem correta (ascendente)
-        data.forEach(ponto => {
-            latlngs.push([ponto.latitude, ponto.longitude]);
-        });
-
-
-        // Desenha o trajeto (polilinha) no mapa
-        if (latlngs.length > 1) {
-            // Usamos uma cor roxa para combinar com seu layout
-            polylineLayer = L.polyline(latlngs, { color: '#631fc9', weight: 5, opacity: 0.8 }).addTo(map);
-            map.fitBounds(polylineLayer.getBounds()); // Ajusta o zoom para o trajeto
-        } else if (latlngs.length === 1) {
-            // Se só tem um ponto, apenas centraliza nele
-            map.setView(latlngs[0], 15);
-        }
-
-        historicoStatus.textContent = `Mostrando ${data.length} pontos para ${nomeUsuario}.`;
         historicoTabela.classList.remove('hidden');
+
+        // Pega o primeiro e último horário
+        const primeiroHorario = new Date(data[0].created_at).toLocaleTimeString('pt-BR');
+        const ultimoHorario = new Date(data[data.length - 1].created_at).toLocaleTimeString('pt-BR');
+
+        // Formata os waypoints para a API da Geoapify
+        const waypoints = data.map(p => `${p.latitude},${p.longitude}`).join('|');
+        const routeUrl = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=drive&apiKey=${apiKey}`;
+
+        try {
+            // Chama a API de Roteamento
+            const response = await fetch(routeUrl);
+            const routeData = await response.json();
+
+            if (routeData.features && routeData.features.length > 0) {
+                // Pega a distância total (em metros) e converte para KM
+                const distanciaEmMetros = routeData.features[0].properties.distance;
+                const distanciaEmKm = (distanciaEmMetros / 1000).toFixed(2);
+
+                // Pega a geometria da rota (que segue as ruas)
+                // GeoJSON vem como [lng, lat], Leaflet usa [lat, lng], por isso o .map(p => [p[1], p[0]])
+                const routeLine = routeData.features[0].geometry.coordinates[0].map(p => [p[1], p[0]]);
+
+                // Desenha a rota no mapa
+                polylineLayer = L.polyline(routeLine, { color: '#631fc9', weight: 5, opacity: 0.8 }).addTo(map);
+                map.fitBounds(polylineLayer.getBounds()); // Ajusta o zoom
+
+                // Atualiza o status com todas as informações
+                historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (${distanciaEmKm} km)`;
+            } else {
+                throw new Error("API da Geoapify não retornou uma rota.");
+            }
+        } catch (err) {
+            console.error("Erro ao calcular rota:", err);
+            historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (Erro ao calcular KM)`;
+            
+            // Fallback: Desenha uma linha reta simples se a API de rota falhar
+            const latlngs = data.map(p => [p.latitude, p.longitude]);
+            polylineLayer = L.polyline(latlngs, { color: '#c91f1f', weight: 3, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
+            map.fitBounds(polylineLayer.getBounds());
+        }
     }
-    // =================== FIM DA NOVA FUNÇÃO (HISTÓRICO) ====================
+    // =================== FIM DA FUNÇÃO DE HISTÓRICO ====================
 
     function setupEventListeners() {
-      // ================== INÍCIO DA MODIFICAÇÃO (HISTÓRICO) ==================
+      // ================== LISTENER DO HISTÓRICO ATUALIZADO ==================
       const verHistoricoBtns = document.querySelectorAll('.verHistoricoBtn');
-      // =================== FIM DA MODIFICAÇÃO (HISTÓRICO) ====================
+      // =================== FIM DA MODIFICAÇÃO ====================
 
       const editarBtns = document.querySelectorAll('.editarBtn');
       const deletarBtns = document.querySelectorAll('.deletarBtn');
       const form = document.getElementById('cadastroForm');
       const submitBtn = document.getElementById('submitBtn');
       const cancelEditBtn = document.getElementById('cancelEditBtn');
-      // const formTitulo = document.getElementById('formTitulo'); // Não é mais usado, o título está no botão
       const mensagemCadastro = document.getElementById('mensagemCadastro');
       const editId = document.getElementById('editId');
 	      const nomeInput = document.getElementById('nome');
 	      const numeroInput = document.getElementById('numero');
 	      const iconeMaquinaInput = document.getElementById('icone_maquina'); // Novo
 	
-      // ================== INÍCIO DA MODIFICAÇÃO (HISTÓRICO) ==================
+      // ================== LISTENER DO HISTÓRICO ATUALIZADO ==================
       // Adiciona o listener para os novos botões "Trajeto"
       verHistoricoBtns.forEach(btn => {
         btn.onclick = () => {
             const id = btn.getAttribute('data-id');
             const nome = btn.getAttribute('data-nome');
-            buscarHistorico(id, nome);
+            
+            // Pega a data do novo input
+            const dataSelecionada = document.getElementById('dataTrajeto').value;
+            
+            if (!dataSelecionada) {
+                alert("Por favor, selecione uma data para ver o trajeto.");
+                return;
+            }
+            
+            buscarHistorico(id, nome, dataSelecionada);
         };
       });
-      // =================== FIM DA MODIFICAÇÃO (HISTÓRICO) ====================
+      // =================== FIM DA MODIFICAÇÃO ====================
 
 	      editarBtns.forEach(btn => {
 	        btn.onclick = async () => {
@@ -430,7 +476,6 @@
 	          iconeMaquinaInput.value = data.icone_maquina || ""; // Novo: Define o ícone selecionado
 		          submitBtn.textContent = "Salvar";
 	          cancelEditBtn.classList.remove('hidden');
-	          // formTitulo.textContent = "Editar celular"; // Não é mais usado
 	          mensagemCadastro.textContent = "";
 	        };
 	      });
@@ -442,7 +487,6 @@
 		        iconeMaquinaInput.value = ""; // Novo: Limpa o select
 		        submitBtn.textContent = "Cadastrar";
             cancelEditBtn.classList.add('hidden');
-            // formTitulo.textContent = "Cadastrar novo celular"; // Não é mais usado
             mensagemCadastro.textContent = "";
 
             // --- ATUALIZADO ---
@@ -496,7 +540,6 @@
         form.reset();
         cancelEditBtn.classList.add('hidden');
         submitBtn.textContent = "Cadastrar";
-	      // document.getElementById('formTitulo').textContent = "Cadastrar novo celular"; // Não é mais usado
         
         // --- ATUALIZADO ---
         // Fecha o menu após o submit
@@ -651,10 +694,6 @@
 		        selectEl.appendChild(option);
 		      });
 		    }
-		
-		    buscarIcones(); // Adiciona a chamada para buscar ícones na inicialização
-		    carregarIconesParaSelect(); // Carrega os ícones no select
-		    buscarCelulares();
 
         // --- 1. NOVO: OUVINTE DE CLIQUE PARA ADICIONAR PONTOS ---
         map.on('click', async function(e) {
@@ -712,6 +751,16 @@
             fecharMenuCadastro();
           }
         };
+
+        // ================== INICIALIZAÇÃO ==================
+        
+        // Define o valor do input de data para "hoje" por padrão
+        document.getElementById('dataTrajeto').valueAsDate = new Date();
+
+		    buscarIcones(); // Adiciona a chamada para buscar ícones na inicialização
+		    carregarIconesParaSelect(); // Carrega os ícones no select
+		    buscarCelulares(); // Carrega os celulares e pontos no mapa
+
 		  </script>
 </body>
 </html>
