@@ -2,7 +2,10 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel de Localização dos Celulares</title>
+  <title>Painel de LOCALIZADOR DE MÁQUINAS</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏗️</text></svg>">
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,13 +17,13 @@
 </head>
 <body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 min-h-screen">
   <nav class="bg-white/90 shadow-lg mb-5 flex items-center justify-between px-6 py-3">
-    <span class="text-indigo-700 font-bold text-xl">Painel de Geolocalização</span>
+  
   </nav>
 
   <main class="mx-auto px-4 w-full">
     <section class="mb-7 flex flex-col md:flex-row gap-4 items-center justify-between">
       <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-3 md:mb-0 drop-shadow-lg">
-        Localização dos Celulares
+        LOCALIZADOR DE MÁQUINAS
       </h1>
       <button id="atualizarBtn"
         class="bg-white hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-5 rounded-lg shadow transition-all">
@@ -32,55 +35,65 @@
         <div id="map" class="rounded-2xl overflow-hidden shadow-lg"></div>
       </div>
 	      <div class="md:w-96 flex flex-col gap-5 justify-between">
-	        <div id="crudIcones">
-	          <h2 class="text-xl text-indigo-700 font-bold mb-2">Gerenciar Ícones</h2>
-	          <div class="bg-white rounded-xl shadow px-4 py-3 mb-4">
-	            <h3 id="formIconeTitulo" class="text-lg font-bold text-indigo-700 mb-2">Cadastrar Novo Ícone</h3>
-	            <form id="cadastroIconeForm" class="flex flex-col gap-3">
-	              <input type="hidden" id="editIconeId" name="editIconeId" />
-	              <div>
-	                <label for="nomeIcone" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
-	                <input type="text" id="nomeIcone" name="nomeIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-	              </div>
-	              <div>
-	                <label for="urlIcone" class="block text-xs font-semibold text-gray-700 mb-1">URL/Nome do Ícone (Geoapify/FontAwesome):</label>
-	                <input type="text" id="urlIcone" name="urlIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: mobile-alt, home, car" />
-	              </div>
-	              <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitIconeBtn">Cadastrar Ícone</button>
-	              <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditIconeBtn">Cancelar Edição</button>
-	              <p id="mensagemCadastroIcone" class="mt-1 text-xs"></p>
-	            </form>
-	          </div>
-	          <ul id="listaIcones" class="flex flex-wrap gap-2 mb-4">
-	            </ul>
-	        </div>
 	        
-	        <div>
+          <button id="toggleIconesMenuBtn" class="w-full bg-white hover:bg-indigo-50 text-indigo-700 font-bold py-3 px-4 rounded-lg shadow transition-all flex justify-between items-center">
+            <span>Gerenciar Ícones</span>
+            <span id="menuIconeChevron" class="transform transition-transform">▼</span>
+          </button>
+
+	        <div id="menuIconesContainer" class="hidden -mt-4"> <div id="crudIcones" class="bg-white rounded-lg shadow-inner p-4"> 
+	            <div class="bg-white rounded-xl shadow px-4 py-3 mb-4">
+	              <h3 id="formIconeTitulo" class="text-lg font-bold text-indigo-700 mb-2">Cadastrar Novo Ícone</h3>
+	              <form id="cadastroIconeForm" class="flex flex-col gap-3">
+	                <input type="hidden" id="editIconeId" name="editIconeId" />
+	                <div>
+	                  <label for="nomeIcone" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
+	                  <input type="text" id="nomeIcone" name="nomeIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+	                </div>
+	                <div>
+	                  <label for="urlIcone" class="block text-xs font-semibold text-gray-700 mb-1">URL/Nome do Ícone (Geoapify/FontAwesome):</label>
+	                  <input type="text" id="urlIcone" name="urlIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: mobile-alt, home, car" />
+	                </div>
+	                <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitIconeBtn">Cadastrar Ícone</button>
+	                <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditIconeBtn">Cancelar Edição</button>
+	                <p id="mensagemCadastroIcone" class="mt-1 text-xs"></p>
+	              </form>
+	            </div>
+	            <ul id="listaIcones" class="flex flex-wrap gap-2 mb-4">
+	              </ul>
+	          </div>
+          </div>
+
+          <button id="toggleCadastroMenuBtn" class="w-full bg-white hover:bg-indigo-50 text-indigo-700 font-bold py-3 px-4 rounded-lg shadow transition-all flex justify-between items-center -mt-4"> <span id="tituloMenuCadastro">Cadastrar Novo Celular</span>
+            <span id="menuCadastroChevron" class="transform transition-transform">▼</span>
+          </button>
+
+	        <div id="menuCadastroContainer" class="hidden -mt-4"> <div class="bg-white rounded-xl shadow-inner px-4 py-3">
+              <form id="cadastroForm" class="flex flex-col gap-3">
+                <input type="hidden" id="editId" name="editId" />
+                <div>
+                  <label for="nome" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
+                  <input type="text" id="nome" name="nome" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="numero" class="block text-xs font-semibold text-gray-700 mb-1">Número do celular:</label>
+                  <input type="text" id="numero" name="numero" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="icone_maquina" class="block text-xs font-semibold text-gray-700 mb-1">Ícone:</label>
+                  <select id="icone_maquina" name="icone_maquina" class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </select>
+                </div>
+                <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitBtn">Cadastrar</button>
+                <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditBtn">Cancelar</button>
+                <p id="mensagemCadastro" class="mt-1 text-xs"></p>
+              </form>
+            </div>
+          </div>
+          <div>
 	          <h2 class="text-xl text-indigo-700 font-bold mb-2">Celulares cadastrados</h2>
 	          <ul id="listaCelulares" class="flex-1 space-y-2"></ul>
 	        </div>
-	        <div class="bg-white rounded-xl shadow px-4 py-3">
-          <h2 id="formTitulo" class="text-lg font-bold text-indigo-700 mb-2">Cadastrar novo celular</h2>
-          <form id="cadastroForm" class="flex flex-col gap-3">
-            <input type="hidden" id="editId" name="editId" />
-            <div>
-              <label for="nome" class="block text-xs font-semibold text-gray-700 mb-1">Nome:</label>
-              <input type="text" id="nome" name="nome" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label for="numero" class="block text-xs font-semibold text-gray-700 mb-1">Número do celular:</label>
-		              <input type="text" id="numero" name="numero" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-		            </div>
-		            <div>
-		              <label for="icone_maquina" class="block text-xs font-semibold text-gray-700 mb-1">Ícone:</label>
-		              <select id="icone_maquina" name="icone_maquina" class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
-		                </select>
-	            </div>
-	            <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitBtn">Cadastrar</button>
-            <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditBtn">Cancelar</button>
-            <p id="mensagemCadastro" class="mt-1 text-xs"></p>
-          </form>
-        </div>
       </div>
     </div>
     <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB © 2025</footer>
@@ -94,8 +107,6 @@
     const SUPABASE_URL = 'https://rptxfjlxymfmxucctuhc.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwdHhmamx4eW1mbXh1Y2N0dWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTcxNjMsImV4cCI6MjA3NzEzMzE2M30.kQSF0jp_-0Qi2AmHQNKz6eTo7zeEi3b7Lk9UjT216dU';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // [Código modificado com a opção de Satélite]
 
     const apiKey = "9452fa947c234c90b794bf2d1b8c5eb4"; // Geoapify para Leaflet
     const map = L.map('map').setView([-14.2, -51.9], 4);
@@ -128,8 +139,7 @@
 
     // Função para o botão "Copiar" (ATUALIZADA)
     function copiarCoords(lat, lng) {
-      // Agora copia o link do Google Maps em vez de apenas as coordenadas
-      const googleMapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const googleMapsLink = `http://googleusercontent.com/maps/google.com/0{lat},${lng}`;
       navigator.clipboard.writeText(googleMapsLink).then(() => {
         alert('Link do Google Maps copiado!');
       }, () => {
@@ -139,8 +149,7 @@
 
     // Função para o botão "WhatsApp" (CORRIGIDA)
     function shareWhatsApp(nome, lat, lng) {
-      // Corrigido o link do Google Maps para o formato correto
-      const googleMapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+      const googleMapsLink = `http://googleusercontent.com/maps/google.com/0{lat},${lng}`;
       const texto = `Localização para *${nome}*:\n${googleMapsLink}`;
       
       const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
@@ -244,13 +253,42 @@
       setupEventListeners();
     }
 
+    // --- NOVA FUNÇÃO AUXILIAR PARA ABRIR O MENU DE CADASTRO ---
+    function abrirMenuCadastro(isEdicao = false) {
+      const container = document.getElementById('menuCadastroContainer');
+      const chevron = document.getElementById('menuCadastroChevron');
+      const titulo = document.getElementById('tituloMenuCadastro');
+      
+      container.classList.remove('hidden');
+      chevron.textContent = '▲';
+      chevron.classList.add('rotate-180');
+      
+      if(isEdicao) {
+        titulo.textContent = 'Editar Celular';
+      } else {
+        titulo.textContent = 'Cadastrar Novo Celular';
+      }
+    }
+
+    // --- NOVA FUNÇÃO AUXILIAR PARA FECHAR O MENU DE CADASTRO ---
+    function fecharMenuCadastro() {
+      const container = document.getElementById('menuCadastroContainer');
+      const chevron = document.getElementById('menuCadastroChevron');
+      const titulo = document.getElementById('tituloMenuCadastro');
+      
+      container.classList.add('hidden');
+      chevron.textContent = '▼';
+      chevron.classList.remove('rotate-180');
+      titulo.textContent = 'Cadastrar Novo Celular';
+    }
+
     function setupEventListeners() {
       const editarBtns = document.querySelectorAll('.editarBtn');
       const deletarBtns = document.querySelectorAll('.deletarBtn');
       const form = document.getElementById('cadastroForm');
       const submitBtn = document.getElementById('submitBtn');
       const cancelEditBtn = document.getElementById('cancelEditBtn');
-      const formTitulo = document.getElementById('formTitulo');
+      // const formTitulo = document.getElementById('formTitulo'); // Não é mais usado, o título está no botão
       const mensagemCadastro = document.getElementById('mensagemCadastro');
       const editId = document.getElementById('editId');
 	      const nomeInput = document.getElementById('nome');
@@ -261,6 +299,11 @@
 	        btn.onclick = async () => {
 	          const id = btn.getAttribute('data-id');
 	          mensagemCadastro.textContent = "Carregando dados...";
+            
+            // --- ATUALIZADO ---
+            // Abre o menu de cadastro ao clicar em "Editar"
+            abrirMenuCadastro(true); 
+
 	          const { data, error } = await supabase
 	            .from('usuarios_localizacao')
 	            .select('*')
@@ -276,7 +319,7 @@
 	          iconeMaquinaInput.value = data.icone_maquina || ""; // Novo: Define o ícone selecionado
 		          submitBtn.textContent = "Salvar";
 	          cancelEditBtn.classList.remove('hidden');
-	          formTitulo.textContent = "Editar celular";
+	          // formTitulo.textContent = "Editar celular"; // Não é mais usado
 	          mensagemCadastro.textContent = "";
 	        };
 	      });
@@ -287,9 +330,13 @@
 		        numeroInput.value = "";
 		        iconeMaquinaInput.value = ""; // Novo: Limpa o select
 		        submitBtn.textContent = "Cadastrar";
-        cancelEditBtn.classList.add('hidden');
-        formTitulo.textContent = "Cadastrar novo celular";
-        mensagemCadastro.textContent = "";
+            cancelEditBtn.classList.add('hidden');
+            // formTitulo.textContent = "Cadastrar novo celular"; // Não é mais usado
+            mensagemCadastro.textContent = "";
+
+            // --- ATUALIZADO ---
+            // Fecha o menu ao cancelar
+            fecharMenuCadastro();
       };
 
       deletarBtns.forEach(btn => {
@@ -338,8 +385,13 @@
         form.reset();
         cancelEditBtn.classList.add('hidden');
         submitBtn.textContent = "Cadastrar";
-	        document.getElementById('formTitulo').textContent = "Cadastrar novo celular";
-	        buscarCelulares();
+	      // document.getElementById('formTitulo').textContent = "Cadastrar novo celular"; // Não é mais usado
+        
+        // --- ATUALIZADO ---
+        // Fecha o menu após o submit
+        fecharMenuCadastro();
+
+	      buscarCelulares();
 	      };
 	    }
 	
@@ -453,7 +505,7 @@
 	          if (error) {
 	            mensagemCadastro.textContent = "Erro ao cadastrar ícone: " + error.message;
 	            return;
-	          }
+          }
 	          mensagemCadastro.textContent = "Ícone cadastrado com sucesso!";
 	        }
 	        form.reset();
@@ -461,7 +513,7 @@
 	        submitBtn.textContent = "Cadastrar Ícone";
 	        document.getElementById('formIconeTitulo').textContent = "Cadastrar Novo Ícone";
 	        buscarIcones();
-	        carregarIconeParaSelect();
+	        carregarIconesParaSelect();
 	        buscarCelulares(); // Atualiza mapa
 	      };
 	    }
@@ -520,6 +572,35 @@
             }
           }
         });
+        
+        // --- NOVO: OUVINTE PARA MENU DE ÍCONES ---
+        document.getElementById('toggleIconesMenuBtn').onclick = function() {
+          const container = document.getElementById('menuIconesContainer');
+          const chevron = document.getElementById('menuIconeChevron');
+          
+          const isHidden = container.classList.toggle('hidden');
+          
+          if (isHidden) {
+            chevron.textContent = '▼';
+            chevron.classList.remove('rotate-180');
+          } else {
+            chevron.textContent = '▲';
+            chevron.classList.add('rotate-180'); 
+          }
+        };
+
+        // --- NOVO: OUVINTE PARA MENU DE CADASTRO DE CELULAR ---
+        document.getElementById('toggleCadastroMenuBtn').onclick = function() {
+          const container = document.getElementById('menuCadastroContainer');
+          const chevron = document.getElementById('menuCadastroChevron');
+          const isHidden = container.classList.contains('hidden');
+
+          if(isHidden) {
+            abrirMenuCadastro(false); // Abre com o título "Cadastrar"
+          } else {
+            fecharMenuCadastro();
+          }
+        };
 		  </script>
 </body>
 </html>
