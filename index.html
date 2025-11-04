@@ -112,11 +112,14 @@
                               <th class="text-left font-semibold p-1">Coords</th>
                           </tr>
                       </thead>
-                      <tbody id="historicoLista"></tbody>
-                  </table>
-              </div>
-            </div>
-            </div>
+                <tbody id="historicoLista"></tbody>
+              </table>
+
+              <div id="historicoTotalKm" class="hidden text-right font-bold text-indigo-700 text-lg p-2 mt-2 border-t border-indigo-200">
+                  </div>
+
+          </div>
+        </div>
     </div>
     <footer class="mt-8 text-white/70 text-center">Painel - SupabaseDB © 2025</footer>
   </main>
@@ -319,6 +322,7 @@
         const historicoStatus = document.getElementById('historicoStatus');
         const historicoTabela = document.getElementById('historicoTabela');
         const historicoLista = document.getElementById('historicoLista');
+        const historicoTotalKmEl = document.getElementById('historicoTotalKm'); 
         
         if (!dataSelecionada) {
             historicoStatus.textContent = "Por favor, selecione uma data.";
@@ -329,6 +333,8 @@
         historicoStatus.classList.remove('hidden');
         historicoTabela.classList.add('hidden');
         historicoLista.innerHTML = '';
+        historicoTotalKmEl.classList.add('hidden'); 
+        historicoTotalKmEl.textContent = '';        
 
         // Limpa o trajeto anterior do mapa
         if (polylineLayer) {
@@ -336,20 +342,18 @@
             polylineLayer = null;
         }
 
-        // Define o início e o fim do dia selecionado
-        const inicioDoDia = new Date(dataSelecionada);
-        inicioDoDia.setHours(0, 0, 0, 0);
-        const fimDoDia = new Date(dataSelecionada);
-        fimDoDia.setHours(23, 59, 59, 999);
+        // CORREÇÃO: Monta as strings de data/hora diretamente em UTC.
+        const inicioDoDiaISO = `${dataSelecionada}T00:00:00.000Z`;
+        const fimDoDiaISO = `${dataSelecionada}T23:59:59.999Z`;
 
         // Busca no Supabase filtrando pelo ID e pelo intervalo de data
         const { data, error } = await supabase
             .from('historico_localizacao')
             .select('latitude, longitude, created_at')
             .eq('usuario_id', usuarioId)
-            .gte('created_at', inicioDoDia.toISOString())
-            .lte('created_at', fimDoDia.toISOString())
-            .order('created_at', { ascending: true }); // Ascendente para desenhar a linha na ordem correta
+            .gte('created_at', inicioDoDiaISO) 
+            .lte('created_at', fimDoDiaISO)   
+            .order('created_at', { ascending: true }); 
 
         if (error) {
             historicoStatus.textContent = `Erro ao buscar histórico: ${error.message}`;
@@ -373,46 +377,112 @@
         });
         historicoTabela.classList.remove('hidden');
 
-        // Pega o primeiro e último horário
-        const primeiroHorario = new Date(data[0].created_at).toLocaleTimeString('pt-BR');
-        const ultimoHorario = new Date(data[data.length - 1].created_at).toLocaleTimeString('pt-BR');
+		const primeiroHorario = new Date(data[0].created_at).toLocaleTimeString('pt-BR');
+		const ultimoHorario = new Date(data[data.length - 1].created_at).toLocaleTimeString('pt-BR');
 
-        // Formata os waypoints para a API da Geoapify
-        const waypoints = data.map(p => `${p.latitude},${p.longitude}`).join('|');
-        const routeUrl = `https://api.geoapify.com/v1/routing?waypoints=${waypoints}&mode=drive&apiKey=${apiKey}`;
+		// Filtra os dados para remover pontos duplicados CONSECUTIVOS.
+		const pontosUnicos = data.filter((ponto, index) => {
+		    if (index === 0) return true;
+		    const pontoAnterior = data[index - 1];
+		    return ponto.latitude !== pontoAnterior.latitude || ponto.longitude !== pontoAnterior.longitude;
+		});
+		
+		if (pontosUnicos.length < 2) {
+            // Se não houver pontos únicos, joga para o 'catch'
+		    throw new Error("Não há pontos únicos suficientes para a API de rotas.");
+		}
+		
+        // ================== INÍCIO DA MUDANÇA (LÓGICA DE SOMATÓRIO) ==================
+		try {
+            let distanciaTotalMetros = 0;
+            let todasAsLinhas = []; // Guarda todos os segmentos de rota para desenhar no mapa
 
-        try {
-            // Chama a API de Roteamento
-            const response = await fetch(routeUrl);
-            const routeData = await response.json();
+            // Loop de 1 em 1 nos pontos únicos, pulando o último
+            for (let i = 0; i < pontosUnicos.length - 1; i++) {
+                const p1 = pontosUnicos[i];
+                const p2 = pontosUnicos[i+1];
 
-            if (routeData.features && routeData.features.length > 0) {
-                // Pega a distância total (em metros) e converte para KM
-                const distanciaEmMetros = routeData.features[0].properties.distance;
-                const distanciaEmKm = (distanciaEmMetros / 1000).toFixed(2);
+                const waypointPair = `${p1.latitude},${p1.longitude}|${p2.latitude},${p2.longitude}`;
+                const routeUrl = `https://api.geoapify.com/v1/routing?waypoints=${waypointPair}&mode=drive&apiKey=${apiKey}`;
 
-                // Pega a geometria da rota (que segue as ruas)
-                // GeoJSON vem como [lng, lat], Leaflet usa [lat, lng], por isso o .map(p => [p[1], p[0]])
-                const routeLine = routeData.features[0].geometry.coordinates[0].map(p => [p[1], p[0]]);
+                // Atualiza o status para o usuário saber que está processando
+                historicoStatus.textContent = `Calculando KM rodado... (${i + 1} de ${pontosUnicos.length - 1})`;
+                
+                let distanciaSegmento = 0;
+                let linhaSegmento = [];
 
-                // Desenha a rota no mapa
-                polylineLayer = L.polyline(routeLine, { color: '#631fc9', weight: 5, opacity: 0.8 }).addTo(map);
-                map.fitBounds(polylineLayer.getBounds()); // Ajusta o zoom
+                try {
+                    const response = await fetch(routeUrl);
+                    const routeData = await response.json();
 
-                // Atualiza o status com todas as informações
-                historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (${distanciaEmKm} km)`;
-            } else {
-                throw new Error("API da Geoapify não retornou uma rota.");
+                    if (routeData.features && routeData.features.length > 0) {
+                        // SUCESSO: Pega a distância da ROTA (ruas)
+                        distanciaSegmento = routeData.features[0].properties.distance;
+                        // Pega a linha da ROTA
+                        linhaSegmento = routeData.features[0].geometry.coordinates[0].map(p => [p[1], p[0]]); // Converte [lng, lat] para [lat, lng]
+                    } else {
+                        // FALHA (API): Usa distância em LINHA RETA para este segmento
+                        throw new Error("Segmento da API falhou, usando linha reta.");
+                    }
+                } catch (segmentError) {
+                    // FALHA (API OU REDE): Usa distância em LINHA RETA para este segmento
+                    console.warn("Falha no segmento da rota:", segmentError.message);
+                    const p1_leaflet = L.latLng(p1.latitude, p1.longitude);
+                    const p2_leaflet = L.latLng(p2.latitude, p2.longitude);
+                    distanciaSegmento = p1_leaflet.distanceTo(p2_leaflet);
+                    // Pega a linha RETA
+                    linhaSegmento = [[p1.latitude, p1.longitude], [p2.latitude, p2.longitude]];
+                }
+
+                distanciaTotalMetros += distanciaSegmento;
+                todasAsLinhas.push(...linhaSegmento); // Adiciona os pontos do segmento à linha total
             }
-        } catch (err) {
-            console.error("Erro ao calcular rota:", err);
-            historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (Erro ao calcular KM)`;
+
+            // ---- FIM DO LOOP ----
+
+            const distanciaTotalKm = (distanciaTotalMetros / 1000).toFixed(2);
+
+            // Desenha a rota COMPLETA no mapa
+            polylineLayer = L.polyline(todasAsLinhas, { color: '#32CD32', weight: 5, opacity: 0.8 }).addTo(map);
+            map.fitBounds(polylineLayer.getBounds()); // Ajusta o zoom
+
+            // Atualiza o status (SEM o KM)
+            historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario}`;
             
-            // Fallback: Desenha uma linha reta simples se a API de rota falhar
-            const latlngs = data.map(p => [p.latitude, p.longitude]);
-            polylineLayer = L.polyline(latlngs, { color: '#c91f1f', weight: 3, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
-            map.fitBounds(polylineLayer.getBounds());
-        }
+            // Preenche o novo campo de KM (Cálculo de Rota)
+            historicoTotalKmEl.textContent = `Total (KM Rodado): ${distanciaTotalKm} km`;
+            historicoTotalKmEl.classList.remove('hidden');
+        
+        } catch (err) {
+            // ================== INÍCIO DO BLOCO CATCH (FALLBACK TOTAL) ==================
+			console.error("Erro GERAL ao calcular rota:", err);
+		
+			if (err.message === "Não há pontos únicos suficientes para a API de rotas.") {
+			    historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (Sem movimento)`;
+			} else {
+			    historicoStatus.textContent = `Trajeto: ${primeiroHorario} às ${ultimoHorario} (Cálculo de KM falhou)`;
+			}
+
+            // Fallback: Calcula o somatório total em LINHA RETA
+            let totalDistanciaMetros = 0;
+            // Usar 'data' (a lista completa, não 'pontosUnicos') para o somatório
+            for (let i = 1; i < data.length; i++) { 
+                const p1 = L.latLng(data[i-1].latitude, data[i-1].longitude);
+                const p2 = L.latLng(data[i].latitude, data[i].longitude);
+                totalDistanciaMetros += p1.distanceTo(p2); // distanceTo retorna metros
+            }
+            const totalDistanciaKm = (totalDistanciaMetros / 1000).toFixed(2);
+        
+            // Exibe o total de KM (Linha Reta) como fallback
+            historicoTotalKmEl.textContent = `Total (Em Linha Reta): ${totalDistanciaKm} km`;
+            historicoTotalKmEl.classList.remove('hidden');
+		
+			// Desenha a linha reta simples
+			const latlngs = data.map(p => [p.latitude, p.longitude]);
+			polylineLayer = L.polyline(latlngs, { color: '#32CD32', weight: 3, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
+			map.fitBounds(polylineLayer.getBounds());
+		}
+        // ================== FIM DA MUDANÇA ==================
     }
     // =================== FIM DA FUNÇÃO DE HISTÓRICO ====================
 
