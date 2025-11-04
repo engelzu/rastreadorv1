@@ -25,10 +25,35 @@
       <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-3 md:mb-0 drop-shadow-lg">
         LOCALIZADOR DE MÁQUINAS
       </h1>
-      <button id="atualizarBtn"
-        class="bg-white hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-5 rounded-lg shadow transition-all">
-        Atualizar Dados
-      </button>
+      
+      <div class="flex gap-4 items-center">
+      
+        <button id="atualizarBtn"
+          class="bg-white hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-5 rounded-lg shadow transition-all">
+          Atualizar Dados
+        </button>
+
+        <div class="relative">
+          <button id="togglePontosMenuBtn"
+            class="bg-white hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-5 rounded-lg shadow transition-all flex items-center gap-2">
+            <span>Pontos no Mapa</span>
+            <span id="menuPontosChevron" class="transform transition-transform">▼</span>
+          </button>
+          
+          <div id="menuPontosContainer" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl z-10 overflow-hidden">
+            <div class="p-3 bg-gray-50 border-b border-gray-200">
+              <h3 class="font-bold text-gray-800">Todos os Pontos</h3>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+              <table class="w-full text-sm">
+                <tbody id="listaTodosPontos">
+                  <tr><td class="p-3 text-gray-500">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
     <div class="bg-white/90 rounded-2xl shadow-lg p-2 mb-4 h-full flex flex-col md:flex-row gap-5">
       <div class="flex-1 min-w-0">
@@ -216,9 +241,16 @@
       window.markers = [];
       document.getElementById('listaCelulares').innerHTML = '';
 
+      // ================== MUDANÇA 2: JS (Limpar nova tabela) ==================
+      const listaTodosPontosEl = document.getElementById('listaTodosPontos');
+      if (listaTodosPontosEl) {
+          listaTodosPontosEl.innerHTML = '';
+      }
+      // ================== FIM DA MUDANÇA 2 ==================
+
       (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at, icone_maquina }) => {
         
-        // ================== INÍCIO DA CORREÇÃO (Ponto de Interesse) ==================
+        // --- Lógica de Ícone ---
         const isPontoMarcado = !numero;
         
         let iconUrl;
@@ -230,21 +262,22 @@
         let shadowAnchor = [12, 41];
         
         if (isPontoMarcado) {
-            // É um Ponto de Interesse (Pino Vermelho) - USANDO URL PÚBLICA (Geoapify falhou)
+            // É um Ponto de Interesse (Pino Vermelho) - USANDO URL PÚBLICA
             iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png';
             iconSize = [25, 41];    // Tamanho real do ícone
             iconAnchor = [12, 41];   // Ponto inferior central
             popupAnchor = [1, -34];  // Ponto de popup
         
         } else if (icone_maquina && icone_maquina.startsWith('http')) {
-            // É uma Máquina/Celular com Ícone Customizado (URL do Supabase) - APLICAR TAMANHO QUADRADO
+            // É uma Máquina/Celular com Ícone Customizado (URL do Supabase) - TAMANHO QUADRADO
             iconUrl = icone_maquina; // Usa a URL completa vinda do banco
             iconSize = [40, 40];      // Tamanho quadrado (40x40)
             iconAnchor = [20, 40];    // Metade da largura, altura total
             popupAnchor = [0, -40];   // Para o popup sair de cima
+            shadowUrl = null; // Ícones customizados geralmente não precisam de sombra
         
         } else {
-            // É uma Máquina/Celular Padrão (Ícone Roxo 'mobile-alt') - Geoapify (ainda funciona)
+            // É uma Máquina/Celular Padrão (Ícone Roxo 'mobile-alt') - Geoapify
             iconUrl = `https://api.geoapify.com/v1/icon/?type=fontawesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`;
             iconSize = [38, 58];
             iconAnchor = [19, 56];
@@ -266,7 +299,7 @@
         }
 
         const markerIcon = L.icon(iconOptions);
-        // ================== FIM DA CORREÇÃO ==================
+        // --- Fim da Lógica de Ícone ---
 
         // --- Lógica de Popup atualizada ---
         const texto = `
@@ -291,6 +324,25 @@
 
         const marker = L.marker([latitude, longitude], { icon: markerIcon }).addTo(map).bindPopup(texto);
         window.markers.push(marker);
+        
+        // ================== MUDANÇA 3: JS (Popular nova tabela) ==================
+        if (listaTodosPontosEl) {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-gray-100 hover:bg-indigo-50 cursor-pointer';
+            tr.innerHTML = `<td class="p-3 text-gray-700 font-medium">${nome}</td>`;
+            
+            // Adiciona o clique para pan/zoom no marcador
+            tr.onclick = () => {
+                map.setView(marker.getLatLng(), 16); // Zoom 16
+                marker.openPopup();
+                
+                // Fecha o menu dropdown
+                document.getElementById('menuPontosContainer').classList.add('hidden');
+                document.getElementById('menuPontosChevron').textContent = '▼';
+            };
+            listaTodosPontosEl.appendChild(tr);
+        }
+        // ================== FIM DA MUDANÇA 3 ==================
         
         // A lista lateral só mostrará itens que são celulares (que têm número)
         if (numero) {
@@ -860,6 +912,22 @@
             fecharMenuCadastro();
           }
         };
+
+        // ================== MUDANÇA 4: JS (Lógica do novo menu) ==================
+        document.getElementById('togglePontosMenuBtn').onclick = function() {
+          const container = document.getElementById('menuPontosContainer');
+          const chevron = document.getElementById('menuPontosChevron');
+          
+          const isHidden = container.classList.toggle('hidden');
+          
+          if (isHidden) {
+            chevron.textContent = '▼';
+          } else {
+            chevron.textContent = '▲';
+          }
+        };
+        // ================== FIM DA MUDANÇA 4 ==================
+
 
         // ================== INICIALIZAÇÃO ==================
         
