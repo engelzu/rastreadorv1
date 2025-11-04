@@ -140,7 +140,8 @@
       </div>
     </main>
 
-  </div> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  </div> 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
     // ===================================================
     // TODO O SEU CÓDIGO ORIGINAL ESTÁ AQUI SEM MUDANÇAS
@@ -475,6 +476,16 @@
           ultimoEnvioEl.textContent = new Date(ultimoEnvioTimestamp).toLocaleTimeString('pt-BR');
         }
 
+        // ===================================================
+        // INÍCIO DA MODIFICAÇÃO (SEU PEDIDO)
+        // ===================================================
+        
+        // Força o app a iniciar sempre no estado "parado"
+        console.log("App carregado. Aguardando clique do usuário para iniciar.");
+        atualizarStatusUI(false);
+
+        /*
+        // CÓDIGO ORIGINAL (PARA INÍCIO AUTOMÁTICO) COMENTADO:
         if (rastreamentoAtivo && savedId) {
           // Atraso para garantir que tudo carregou antes de tentar iniciar
           setTimeout(() => {
@@ -488,6 +499,12 @@
         } else {
             atualizarStatusUI(false);
         }
+        */
+
+        // ===================================================
+        // FIM DA MODIFICAÇÃO
+        // ===================================================
+
       } catch (err) {
         // --- CORREÇÃO AQUI ---
         // Log mais detalhado
