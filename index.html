@@ -218,20 +218,23 @@
 
       (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at, icone_maquina }) => {
         
-        // ================== INÍCIO DA CORREÇÃO (Tamanho do Ícone) ==================
+        // ================== INÍCIO DA CORREÇÃO (Ponto de Interesse) ==================
         const isPontoMarcado = !numero;
         
         let iconUrl;
         let iconSize;
         let iconAnchor;
         let popupAnchor;
+        let shadowUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png'; // Sombra padrão
+        let shadowSize = [41, 41];
+        let shadowAnchor = [12, 41];
         
         if (isPontoMarcado) {
-            // É um Ponto de Interesse (Pino Vermelho) - Manter o original
-            iconUrl = `https://api.geoapify.com/v1/icon/?type=material&color=%23c91f1f&size=large&icon=location-pin&apiKey=${apiKey}`;
-            iconSize = [38, 58];
-            iconAnchor = [19, 56];
-            popupAnchor = [0, -50];
+            // É um Ponto de Interesse (Pino Vermelho) - USANDO URL PÚBLICA (Geoapify falhou)
+            iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png';
+            iconSize = [25, 41];    // Tamanho real do ícone
+            iconAnchor = [12, 41];   // Ponto inferior central
+            popupAnchor = [1, -34];  // Ponto de popup
         
         } else if (icone_maquina && icone_maquina.startsWith('http')) {
             // É uma Máquina/Celular com Ícone Customizado (URL do Supabase) - APLICAR TAMANHO QUADRADO
@@ -241,19 +244,28 @@
             popupAnchor = [0, -40];   // Para o popup sair de cima
         
         } else {
-            // É uma Máquina/Celular Padrão (Ícone Roxo 'mobile-alt') - Manter o original
+            // É uma Máquina/Celular Padrão (Ícone Roxo 'mobile-alt') - Geoapify (ainda funciona)
             iconUrl = `https://api.geoapify.com/v1/icon/?type=fontawesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`;
             iconSize = [38, 58];
             iconAnchor = [19, 56];
             popupAnchor = [0, -50];
+            shadowUrl = null; // Geoapify já embute a sombra
         }
 
-        const markerIcon = L.icon({
+        const iconOptions = {
           iconUrl: iconUrl,
           iconSize: iconSize, 
           iconAnchor: iconAnchor,
           popupAnchor: popupAnchor,
-        });
+        };
+
+        if (shadowUrl) {
+            iconOptions.shadowUrl = shadowUrl;
+            iconOptions.shadowSize = shadowSize;
+            iconOptions.shadowAnchor = shadowAnchor;
+        }
+
+        const markerIcon = L.icon(iconOptions);
         // ================== FIM DA CORREÇÃO ==================
 
         // --- Lógica de Popup atualizada ---
