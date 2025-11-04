@@ -51,8 +51,8 @@
 	                  <input type="text" id="nomeIcone" name="nomeIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" />
 	                </div>
 	                <div>
-	                  <label for="urlIcone" class="block text-xs font-semibold text-gray-700 mb-1">URL/Nome do Ícone (Geoapify/FontAwesome):</label>
-	                  <input type="text" id="urlIcone" name="urlIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: mobile-alt, home, car" />
+	                  <label for="urlIcone" class="block text-xs font-semibold text-gray-700 mb-1">URL Pública do Ícone (do Supabase Storage):</label>
+	                  <input type="text" id="urlIcone" name="urlIcone" required class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://...supabase.co/.../icone.png" />
 	                </div>
 	                <button type="submit" class="bg-indigo-700 text-white font-bold py-1 px-4 rounded shadow hover:bg-indigo-800 transition" id="submitIconeBtn">Cadastrar Ícone</button>
 	                <button type="button" class="bg-gray-500 text-white font-bold py-1 px-4 rounded shadow hover:bg-gray-600 transition hidden" id="cancelEditIconeBtn">Cancelar Edição</button>
@@ -138,14 +138,11 @@
     
     let polylineLayer = null; // Guarda a linha do trajeto no mapa
 
-    // ================== INÍCIO DA CORREÇÃO DO MAPA ==================
     // 1. Defina as duas camadas de mapa (Layers)
-    // Trocamos o 'osm-liberty' (que estava falhando) pelo OpenStreetMap padrão.
     const osmLibertyLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     });
-    // ================== FIM DA CORREÇÃO DO MAPA ==================
     
     // [SOLUÇÃO FINAL - Satélite Gratuito da Esri]
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -221,22 +218,43 @@
 
       (lista || []).filter(c => c.latitude && c.longitude).forEach(({ id, nome, numero, latitude, longitude, created_at, icone_maquina }) => {
         
-        // --- Lógica de ícone atualizada ---
-        const isPontoMarcado = !numero; // Se NÃO tem número (ou é ''), é um ponto (máquina)
+        // ================== INÍCIO DA CORREÇÃO (Tamanho do Ícone) ==================
+        const isPontoMarcado = !numero;
         
-        const iconeCor = isPontoMarcado ? '%23c91f1f' : '%23631fc9'; // Vermelho para ponto, Roxo para celular
-        const iconeLabel = isPontoMarcado ? 'location-pin' : (icone_maquina || 'mobile-alt'); // Icone 'pino' para ponto, icone do celular para... celular
-
-        // ================== CORREÇÃO 1 (Mapa) ==================
-        const iconeType = isPontoMarcado ? 'material' : 'fontawesome'; // Ponto de interesse = material, Celular/Máquina = fontawesome
+        let iconUrl;
+        let iconSize;
+        let iconAnchor;
+        let popupAnchor;
+        
+        if (isPontoMarcado) {
+            // É um Ponto de Interesse (Pino Vermelho) - Manter o original
+            iconUrl = `https://api.geoapify.com/v1/icon/?type=material&color=%23c91f1f&size=large&icon=location-pin&apiKey=${apiKey}`;
+            iconSize = [38, 58];
+            iconAnchor = [19, 56];
+            popupAnchor = [0, -50];
+        
+        } else if (icone_maquina && icone_maquina.startsWith('http')) {
+            // É uma Máquina/Celular com Ícone Customizado (URL do Supabase) - APLICAR TAMANHO QUADRADO
+            iconUrl = icone_maquina; // Usa a URL completa vinda do banco
+            iconSize = [40, 40];      // Tamanho quadrado (40x40)
+            iconAnchor = [20, 40];    // Metade da largura, altura total
+            popupAnchor = [0, -40];   // Para o popup sair de cima
+        
+        } else {
+            // É uma Máquina/Celular Padrão (Ícone Roxo 'mobile-alt') - Manter o original
+            iconUrl = `https://api.geoapify.com/v1/icon/?type=fontawesome&color=%23631fc9&size=large&icon=mobile-alt&apiKey=${apiKey}`;
+            iconSize = [38, 58];
+            iconAnchor = [19, 56];
+            popupAnchor = [0, -50];
+        }
 
         const markerIcon = L.icon({
-          iconUrl: `https://api.geoapify.com/v1/icon/?type=${iconeType}&color=${iconeCor}&size=large&icon=${iconeLabel}&apiKey=${apiKey}`,
-          iconSize: [38, 58],
-          iconAnchor: [19, 56],
-          popupAnchor: [0, -50],
+          iconUrl: iconUrl,
+          iconSize: iconSize, 
+          iconAnchor: iconAnchor,
+          popupAnchor: popupAnchor,
         });
-        // ================== FIM DA CORREÇÃO 1 ==================
+        // ================== FIM DA CORREÇÃO ==================
 
         // --- Lógica de Popup atualizada ---
         const texto = `
@@ -642,16 +660,17 @@
 	      (icones || []).forEach(icone => {
 	        const item = document.createElement('li');
 	        item.className = 'flex items-center gap-2 p-1 bg-gray-100 rounded shadow text-sm';
-            // ================== CORREÇÃO 2 (Lista) ==================
+            // ================== MUDANÇA 3: Lógica da Lista de Ícones ==================
+            // Agora, o `icone.label_icone` é a URL completa da imagem no Supabase
 		        item.innerHTML = `
-		          <img src="https://api.geoapify.com/v1/icon/?type=fontawesome&color=%23631fc9&size=small&icon=${icone.label_icone}&apiKey=${apiKey}" class="w-5 h-5" alt="${icone.nome_icone}">
+		          <img src="${icone.label_icone}" class="w-5 h-5" alt="${icone.nome_icone}">
 	          <span>${icone.nome_icone}</span>
 	          <div class="flex gap-1">
 	            <button class="editarIconeBtn bg-yellow-400 hover:bg-yellow-500 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">E</button>
 	            <button class="deletarIconeBtn bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">X</button>
 	          </div>
 	        `;
-            // ================== FIM DA CORREÇÃO 2 ==================
+            // ================== FIM DA MUDANÇA 3 ==================
 	        listaIconesEl.appendChild(item);
 	      });
 	
@@ -679,7 +698,7 @@
 	
 	          editId.value = icone.id;
 	          nomeInput.value = icone.nome_icone;
-	          urlInput.value = icone.label_icone; // Ajustado para o nome da coluna do usuário
+	          urlInput.value = icone.label_icone; // O valor agora é a URL completa
 	          submitBtn.textContent = "Salvar Ícone";
 	          cancelEditBtn.classList.remove('hidden');
 	          formTitulo.textContent = "Editar Ícone";
@@ -720,7 +739,7 @@
 	        const id = editId.value;
 	        const payload = {
 	          nome_icone: nomeInput.value,
-	          label_icone: urlInput.value // Ajustado para o nome da coluna do usuário
+	          label_icone: urlInput.value // Salva a URL completa
 	        };
 	        if (id) {
 	          const { error } = await supabase
@@ -755,7 +774,7 @@
 		    async function carregarIconesParaSelect() {
 		      const { data: icones, error } = await supabase
 		        .from('icones_maquina')
-		        .select('label_icone, nome_icone');
+		        .select('label_icone, nome_icone'); // label_icone agora é a URL
 		
 		      if (error) {
 		        console.error("Erro ao carregar ícones para o select:", error.message);
@@ -763,12 +782,12 @@
 		      }
 		
 		      const selectEl = document.getElementById('icone_maquina');
-		      selectEl.innerHTML = '<option value="">(Padrão: mobile-alt)</option>'; // Opção padrão
+		      selectEl.innerHTML = '<option value="">(Padrão)</option>'; // Opção padrão
 		
 		      (icones || []).forEach(icone => {
 		        const option = document.createElement('option');
-		        option.value = icone.label_icone;
-		        option.textContent = icone.nome_icone + ' (' + icone.label_icone + ')';
+		        option.value = icone.label_icone; // O valor é a URL
+		        option.textContent = icone.nome_icone; // O texto é só o nome amigável
 		        selectEl.appendChild(option);
 		      });
 		    }
