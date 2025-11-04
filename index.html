@@ -138,11 +138,14 @@
     
     let polylineLayer = null; // Guarda a linha do trajeto no mapa
 
+    // ================== INÍCIO DA CORREÇÃO DO MAPA ==================
     // 1. Defina as duas camadas de mapa (Layers)
-    const osmLibertyLayer = L.tileLayer(`https://maps.geoapify.com/v1/tile/osm-liberty/{z}/{x}/{y}.png?apiKey=${apiKey}`, {
-      attribution: '© OpenStreetMap, Geoapify',
+    // Trocamos o 'osm-liberty' (que estava falhando) pelo OpenStreetMap padrão.
+    const osmLibertyLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     });
+    // ================== FIM DA CORREÇÃO DO MAPA ==================
     
     // [SOLUÇÃO FINAL - Satélite Gratuito da Esri]
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
