@@ -224,13 +224,16 @@
         const iconeCor = isPontoMarcado ? '%23c91f1f' : '%23631fc9'; // Vermelho para ponto, Roxo para celular
         const iconeLabel = isPontoMarcado ? 'location-pin' : (icone_maquina || 'mobile-alt'); // Icone 'pino' para ponto, icone do celular para... celular
 
+        // ================== CORREÇÃO 1 (Mapa) ==================
+        const iconeType = isPontoMarcado ? 'material' : 'fontawesome'; // Ponto de interesse = material, Celular/Máquina = fontawesome
+
         const markerIcon = L.icon({
-          iconUrl: `https://api.geoapify.com/v1/icon/?type=material&color=${iconeCor}&size=large&icon=${iconeLabel}&apiKey=${apiKey}`,
+          iconUrl: `https://api.geoapify.com/v1/icon/?type=${iconeType}&color=${iconeCor}&size=large&icon=${iconeLabel}&apiKey=${apiKey}`,
           iconSize: [38, 58],
           iconAnchor: [19, 56],
           popupAnchor: [0, -50],
         });
-        // --- Fim da lógica de ícone ---
+        // ================== FIM DA CORREÇÃO 1 ==================
 
         // --- Lógica de Popup atualizada ---
         const texto = `
@@ -392,7 +395,7 @@
 		    throw new Error("Não há pontos únicos suficientes para a API de rotas.");
 		}
 		
-        // ================== INÍCIO DA MUDANÇA (LÓGICA DE SOMATÓRIO) ==================
+        // ================== LÓGICA DE SOMATÓRIO (KM RODADO) ==================
 		try {
             let distanciaTotalMetros = 0;
             let todasAsLinhas = []; // Guarda todos os segmentos de rota para desenhar no mapa
@@ -454,7 +457,7 @@
             historicoTotalKmEl.classList.remove('hidden');
         
         } catch (err) {
-            // ================== INÍCIO DO BLOCO CATCH (FALLBACK TOTAL) ==================
+            // ================== BLOCO CATCH (FALLBACK TOTAL) ==================
 			console.error("Erro GERAL ao calcular rota:", err);
 		
 			if (err.message === "Não há pontos únicos suficientes para a API de rotas.") {
@@ -636,14 +639,16 @@
 	      (icones || []).forEach(icone => {
 	        const item = document.createElement('li');
 	        item.className = 'flex items-center gap-2 p-1 bg-gray-100 rounded shadow text-sm';
+            // ================== CORREÇÃO 2 (Lista) ==================
 		        item.innerHTML = `
-		          <img src="https://api.geoapify.com/v1/icon/?type=material&color=%23631fc9&size=small&icon=${icone.label_icone}&apiKey=${apiKey}" class="w-5 h-5" alt="${icone.nome_icone}">
+		          <img src="https://api.geoapify.com/v1/icon/?type=fontawesome&color=%23631fc9&size=small&icon=${icone.label_icone}&apiKey=${apiKey}" class="w-5 h-5" alt="${icone.nome_icone}">
 	          <span>${icone.nome_icone}</span>
 	          <div class="flex gap-1">
 	            <button class="editarIconeBtn bg-yellow-400 hover:bg-yellow-500 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">E</button>
 	            <button class="deletarIconeBtn bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-0.5 px-1 rounded shadow" data-id="${icone.id}">X</button>
 	          </div>
 	        `;
+            // ================== FIM DA CORREÇÃO 2 ==================
 	        listaIconesEl.appendChild(item);
 	      });
 	
